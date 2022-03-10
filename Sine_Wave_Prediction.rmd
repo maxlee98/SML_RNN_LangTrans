@@ -1,0 +1,106 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+https://www.analyticsvidhya.com/blog/2019/01/fundamentals-deep-learning-recurrent-neural-networks-scratch-python/
+
+```{r}
+library(dplyr)
+```
+First, we start by generating value of sine for 1 up to and including 200. 
+
+```{r}
+sine <- as.matrix(sin(1:200))
+plot(sine[1:50],xlab="x",ylab="y = sin(x)")
+lines(1:50, sine[1:50])
+```
+We prepare our dataset, where X refers to windows of 50 values of sin(x). For example, the first row would include the values of sine from 1 to 50, the second row would include the values of sine from 2 to 51, etc.
+
+y will refer to the next value that comes in this sequence. So the first row would be the value of sin(51), the second row would be the value of sin(52), etc.
+
+```{r}
+X = NULL
+Y = NULL
+
+sequence_length = 50
+num_records = length(sine) - sequence_length
+
+for (i in 1:(num_records-50)){
+  X = rbind(X, sine[i:(i+sequence_length-1)])
+  Y = rbind(Y, sine[i+sequence_length-1])
+}
+
+```
+
+The remaining records will be used as our validation set.
+
+```{r}
+X_val = NULL
+Y_val = NULL
+
+for (i in (num_records-49):(num_records)){
+  X_val = rbind(X_val, sine[i:(i+sequence_length-1)])
+  Y_val = rbind(Y_val, sine[i+sequence_length-1])
+}
+
+```
+
+
+We set up the necessary hyperparameters for our RNN model.
+
+```{r}
+learning_rate = 0.001
+epochs = 25
+hidden_dim = 100
+output_dim = 1
+
+bptt_truncate = 5
+min_clip_value = -10
+max_clip_value = 10
+```
+
+We now initialize the weights for our network. We will also set.seed to allow for reproducible results.
+
+```{r}
+set.seed(123)
+U = matrix(runif(hidden_dim * sequence_length), nrow = hidden_dim, ncol = sequence_length)
+W = matrix(runif(hidden_dim * hidden_dim), nrow = hidden_dim, ncol = hidden_dim)
+V = matrix(runif(output_dim * hidden_dim), nrow = output_dim, ncol = hidden_dim)
+```
+
+We will also need our dearest sigmoid function, and its derivative.
+
+```{r}
+sigmoid <- function(x){
+  1 / (1 + exp(-x))
+}
+```
+
+Now, we begin training. We first do a forward pass through the RNN and calculate the squared error of all the predictions, yielding us the loss value.
+
+```{r}
+for (epoch in 1:epochs){
+  loss = 0
+  
+  for (i in 1:dim(Y)[1]){
+    x <- X[i,]
+    y <- Y[i]
+    prev_s <- rep(0, hidden_dim) # Initializing the previous activation as a vector of 0s.
+    for (t in 1:sequence_length){
+      new_input <- rep(0, length(x))
+      new_input[t] <- x[t]
+      mulu <- U %*% new_input
+      mulw <- W %*% prev_s
+      add <- mulw + mulu
+      s = sigmoid(add)
+      mulv <- V %*% s
+      prev_s <- s
+    }
+    
+    loss_per_record <- ((y - mulv)^2)/2
+    loss = loss + loss_per_record
+  }
+  loss = loss/length(y)
+}
+```
+
