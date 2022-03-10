@@ -1,3 +1,24 @@
+# Language Translation 
+To create a language translator using Recurrent Neural Network (RNN) in R.
+
+# Tasks
+Document Submission - Wait for template
+Header - Wait for template
+Table of Contents - At the end
+Packages required - At the end
+Sources - Add while doing
+Hook - Once we finish
+Context - YS, what we have learnt before that we are using
+Theory - YS, explain the math and a simple RNN from scratch
+Application - Max, RNN on keras
+
+Deadline: 22nd March, after SML
+
+
+# References
+
+
+
 # Welcome to GitHub
 
 Welcome to GitHub—where millions of developers work together on software. Ready to get started? Let’s learn how this all works by building and publishing your first GitHub Pages website!
