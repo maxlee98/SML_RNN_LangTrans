@@ -71,9 +71,116 @@ for epoch in range(nepoch):
             s = sigmoid(add)
             mulv = np.dot(V, s)
             prev_s = s
-            print(prev_s)
 
     # calculate error 
         loss_per_record = (y - mulv)**2 / 2
         loss += loss_per_record
     loss = loss / float(y.shape[0])
+    
+    # check loss on val
+    val_loss = 0.0
+    for i in range(Y_val.shape[0]):
+        x, y = X_val[i], Y_val[i]
+        prev_s = np.zeros((hidden_dim, 1))
+        for t in range(T):
+            new_input = np.zeros(x.shape)
+            new_input[t] = x[t]
+            mulu = np.dot(U, new_input)
+            mulw = np.dot(W, prev_s)
+            add = mulw + mulu
+            s = sigmoid(add)
+            mulv = np.dot(V, s)
+            prev_s = s
+    
+        loss_per_record = (y - mulv)**2 / 2
+        val_loss += loss_per_record
+    val_loss = val_loss / float(y.shape[0])
+    
+    print('Epoch: ', epoch + 1, ', Loss: ', loss, ', Val Loss: ', val_loss)
+    
+    # train model
+    for i in range(Y.shape[0]):
+        x, y = X[i], Y[i]
+    
+        layers = []
+        prev_s = np.zeros((hidden_dim, 1))
+        dU = np.zeros(U.shape)
+        dV = np.zeros(V.shape)
+        dW = np.zeros(W.shape)
+        
+        dU_t = np.zeros(U.shape)
+        dV_t = np.zeros(V.shape)
+        dW_t = np.zeros(W.shape)
+        
+        dU_i = np.zeros(U.shape)
+        dW_i = np.zeros(W.shape)
+        
+        # forward pass
+        for t in range(T):
+            new_input = np.zeros(x.shape)
+            new_input[t] = x[t]
+            mulu = np.dot(U, new_input)
+            mulw = np.dot(W, prev_s)
+            add = mulw + mulu
+            s = sigmoid(add)
+            mulv = np.dot(V, s)
+            layers.append({'s':s, 'prev_s':prev_s})
+            prev_s = s
+            
+         # derivative of pred
+        dmulv = (mulv - y)
+    
+        # backward pass
+        for t in range(T):
+            dV_t = np.dot(dmulv, np.transpose(layers[t]['s']))
+            dsv = np.dot(np.transpose(V), dmulv)
+            
+            ds = dsv
+            dadd = add * (1 - add) * ds
+            
+            dmulw = dadd * np.ones_like(mulw)
+    
+            dprev_s = np.dot(np.transpose(W), dmulw)
+    
+    
+            for i in range(t-1, max(-1, t-bptt_truncate-1), -1):
+                ds = dsv + dprev_s
+                dadd = add * (1 - add) * ds
+    
+                dmulw = dadd * np.ones_like(mulw)
+                dmulu = dadd * np.ones_like(mulu)
+    
+                dW_i = np.dot(W, layers[t]['prev_s'])
+                dprev_s = np.dot(np.transpose(W), dmulw)
+    
+                new_input = np.zeros(x.shape)
+                new_input[t] = x[t]
+                dU_i = np.dot(U, new_input)
+                dx = np.dot(np.transpose(U), dmulu)
+    
+                dU_t += dU_i
+                dW_t += dW_i
+                
+            dV += dV_t
+            dU += dU_t
+            dW += dW_t
+        
+            if dU.max() > max_clip_value:
+                dU[dU > max_clip_value] = max_clip_value
+            if dV.max() > max_clip_value:
+                dV[dV > max_clip_value] = max_clip_value
+            if dW.max() > max_clip_value:
+                dW[dW > max_clip_value] = max_clip_value
+                
+            
+            if dU.min() < min_clip_value:
+                dU[dU < min_clip_value] = min_clip_value
+            if dV.min() < min_clip_value:
+                dV[dV < min_clip_value] = min_clip_value
+            if dW.min() < min_clip_value:
+                dW[dW < min_clip_value] = min_clip_value
+    
+        # update
+        U -= learning_rate * dU
+        V -= learning_rate * dV
+        W -= learning_rate * dW
