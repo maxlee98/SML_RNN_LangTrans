@@ -1,0 +1,6 @@
+"0","```r
+tensor_x <- convert2tensor(tmp_x)
+# tensor_x
+tensor_y <- convert2tensor(tmp_y)
+# tensor_y
+```"

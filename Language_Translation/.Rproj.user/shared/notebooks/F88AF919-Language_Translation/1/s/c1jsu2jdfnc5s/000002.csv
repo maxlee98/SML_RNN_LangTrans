@@ -1,0 +1,9 @@
+"0","```r
+convert2tensor <- function(preprocess_data){
+  preprocess_data <- array(preprocess_data, c(dim(preprocess_data)[1], dim(preprocess_data)[2], 1))
+  return(preprocess_data)
+}
+
+# array(preprocess_x[[1]], c(dim(preprocess_x[[1]])[1], dim(preprocess_x[[1]])[2], 1))
+# dim(array(preprocess_x[[1]], c(dim(preprocess_x[[1]])[1], dim(preprocess_x[[1]])[2], 1)))[2:3]
+```"

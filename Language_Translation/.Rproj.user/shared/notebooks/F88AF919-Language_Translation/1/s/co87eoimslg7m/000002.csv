@@ -1,0 +1,17 @@
+"0","```r
+# test_tail <- tail(tmp_x)
+# test_tail
+# holder <- NULL
+# for(i in 1:nrow(test_tail)){
+#   print(test_tail[i, ])
+#   logit_lst <- test_tail[i, ]
+#   logit_lst <- matrix(logit_lst, ncol=1)
+#   logit_lst <- array(logit_lst, c(dim(logit_lst)[1], dim(logit_lst)[2], 1))
+#   if (is.null(holder)){
+#     holder <- logit_lst
+#   }else{
+#     holder <- abind(holder, logit_lst)
+#   }
+# }
+# holder
+```"

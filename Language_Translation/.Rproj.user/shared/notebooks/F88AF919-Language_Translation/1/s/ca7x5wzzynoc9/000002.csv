@@ -1,0 +1,17 @@
+"0","```r
+n <- nrow(train) #1000
+train_x <- list(train[, 1])[[1]][1:n]
+train_y <- list(train[, 2])[[1]][1:n]
+# print(train_x)
+
+process_output <- preprocess_text(train_x, train_y)
+# print(process_output[4],)
+preprocess_x <- process_output[1]; preprocess_y <- process_output[2]; x_tk <- process_output[3]; y_tk <- process_output[4]
+# print(preprocess_x[[1]])
+# print(preprocess_y[[1]])
+
+
+# Conversion back to list of words from tokenized word list
+# attributes(x_tk[[1]])$names
+# length(y_tk[[1]])
+```"

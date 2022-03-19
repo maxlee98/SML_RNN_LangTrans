@@ -1,0 +1,13 @@
+"0","```r
+col_x <- dim(preprocess_x[[1]])[2]
+col_y <- dim(preprocess_y[[1]])[2]
+
+if(col_x >= col_y){
+  max_col <- col_x
+}else{
+  max_col <- col_y
+}
+
+tmp_x <- pad(preprocess_x[[1]], max_col)
+tmp_y <- pad(preprocess_y[[1]], max_col)
+```"

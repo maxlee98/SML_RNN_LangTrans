@@ -1,0 +1,17 @@
+"0","```r
+for(i in 1:length(text_sentences)){
+  print(paste0(\"Sequence in Text \", i, \":\"))
+  print(paste0(\"Input: \", text_sentences[i]))
+  print(paste0(\"Output: \", list(text_tokenized[[i]])))
+}
+```"
+"1","[1] \"Sequence in Text 1:\"
+[1] \"Input: The quick brown fox jumps over the lazy dog .\"
+[1] \"Output: c(1, 2, 4, 5, 6, 7, 1, 8, 9)\"
+[1] \"Sequence in Text 2:\"
+[1] \"Input: By Jove , my quick study of lexicography won a prize .\"
+[1] \"Output: c(10, 11, 12, 2, 13, 14, 15, 16, 3, 17)\"
+[1] \"Sequence in Text 3:\"
+[1] \"Input: This is a short sentence .\"
+[1] \"Output: c(18, 19, 3, 20, 21)\"
+"

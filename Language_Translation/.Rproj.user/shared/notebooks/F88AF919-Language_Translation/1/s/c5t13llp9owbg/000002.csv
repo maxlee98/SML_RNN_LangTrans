@@ -1,0 +1,19 @@
+"0","```r
+convertTensor <- function(preprocess_data){
+  holder <- NULL
+  for(i in 1:nrow(preprocess_data)){
+    logit_lst <- preprocess_data[i, ]
+    logit_lst <- matrix(logit_lst, ncol=1)
+    logit_lst <- array(logit_lst, c(dim(logit_lst)[1], dim(logit_lst)[2], 1))
+    if (is.null(holder)){
+      holder <- logit_lst
+    }else{
+      holder <- abind(holder, logit_lst)
+    }
+  }
+  holder
+}
+# tmp_x
+# convertTensor(tmp_x)
+
+```"

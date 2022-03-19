@@ -1,0 +1,22 @@
+"0","```r
+
+logits_to_text <- function(logits, tokenizer){
+  tokenizer_words <- attributes(tokenizer[[1]])$names
+  text <- c()
+  for(i in logits){
+    if(i == 0){
+      text <- c(text, \"<PAD>\")
+    }else{
+      text <- c(text, tokenizer_words[i])
+    }
+  }
+  return(text)
+}
+
+# Testing to convert the first row back to text
+# preprocess_x[[1]]
+logits_to_text(preprocess_x[[1]][1, ], x_tk)
+```"
+"1"," [1] \"run\"   \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\"
+[18] \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\" \"<PAD>\"
+"

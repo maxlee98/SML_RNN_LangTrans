@@ -1,0 +1,5 @@
+"0","```r
+pad <- function(x, length=NULL){
+  return(pad_sequences(x, maxlen = length, padding = 'post'))
+}
+```"

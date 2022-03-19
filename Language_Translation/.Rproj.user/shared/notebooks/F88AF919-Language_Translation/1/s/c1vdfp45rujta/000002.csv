@@ -1,0 +1,15 @@
+"0","```r
+n <- 1000
+word_list <- list(train[, 2])[[1]][1:n]
+new_output <- tokenize(word_list)
+new_text_tokenized <- new_output[1:n]
+new_padded_text <- pad(new_text_tokenized)
+
+# for(i in 1:n){
+#   print(paste0(\"Sequence in Text \", i, \":\"))
+#   print(paste0(\"Input: \", word_list[i]))
+#   print(paste0(\"Output: \", list(new_text_tokenized[[i]])))
+#   print(paste0(\"Output (Padded): \", list(new_padded_text[i,])))
+# }
+
+```"
