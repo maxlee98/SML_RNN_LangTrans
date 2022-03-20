@@ -6,6 +6,7 @@ Created on Thu Mar 10 16:57:52 2022
 """
 import math
 import numpy as np
+import matplotlib.pyplot as plt
 
 sin_wave = np.array([math.sin(x) for x in np.arange(200)])
 X = []
@@ -75,6 +76,7 @@ for epoch in range(nepoch):
     # calculate error 
         loss_per_record = (y - mulv)**2 / 2
         loss += loss_per_record
+    print(y.shape[0])
     loss = loss / float(y.shape[0])
     
     # check loss on val
@@ -184,3 +186,24 @@ for epoch in range(nepoch):
         U -= learning_rate * dU
         V -= learning_rate * dV
         W -= learning_rate * dW
+        
+preds = []
+for i in range(Y.shape[0]):
+    x, y = X[i], Y[i]
+    prev_s = np.zeros((hidden_dim, 1))
+    # Forward pass
+    for t in range(T):
+        mulu = np.dot(U, x)
+        mulw = np.dot(W, prev_s)
+        add = mulw + mulu
+        s = sigmoid(add)
+        mulv = np.dot(V, s)
+        prev_s = s
+
+    preds.append(mulv)
+    
+preds = np.array(preds)
+
+plt.plot(preds[:, 0, 0], 'g')
+plt.plot(Y[:, 0], 'r')
+plt.show()
