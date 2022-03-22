@@ -1,0 +1,6 @@
+"0","```r
+accuracy <- as.numeric(perf[2])
+print(str_c(\"Accuracy of the model was \",round(accuracy * 100, 2),\"% on the test data\"))
+```"
+"1","[1] \"Accuracy of the model was 92.98% on the test data\"
+"

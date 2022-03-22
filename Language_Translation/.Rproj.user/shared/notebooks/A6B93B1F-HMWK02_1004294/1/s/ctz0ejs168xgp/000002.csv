@@ -1,0 +1,6 @@
+"0","```r
+maxentropy <- log2(length(p))
+print(maxentropy)
+```"
+"1","[1] 3
+"

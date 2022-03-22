@@ -1,0 +1,8 @@
+"0","```r
+all_colors <- c(\"lightgray\",\"blue\") # blue will represent malignant diagnosis, lightgray is benign
+# Sort so that the malignant cases are on top
+bc_plotdata <- bc_data_plot[, c(1:30)] %>% arrange(-diagnosis)
+# bc_plotdata
+bc_colors <- all_colors[factor(bc_plotdata$diagnosis)]
+parcoord(bc_plotdata , col = bc_colors )
+```"

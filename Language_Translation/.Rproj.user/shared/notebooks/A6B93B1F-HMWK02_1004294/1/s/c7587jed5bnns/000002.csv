@@ -1,0 +1,6 @@
+"0","```r
+# Sort so that the benign cases are on top
+bc_plotdata <- bc_data_plot[, c(1:30)] %>% arrange(diagnosis)
+bc_colors <- all_colors[factor(bc_plotdata$diagnosis)]
+parcoord(bc_plotdata , col = bc_colors )
+```"

@@ -1,0 +1,12 @@
+"0","```r
+p <- c(1/32,8/32,15/32,3/32,1/32,1/32,1/32,2/32)
+entropy <- c()
+for(i in 1:length(p)){
+  each_entropy <- p[i] * log2(p[i])
+  entropy <- c(entropy, each_entropy)
+}
+entropy <- -sum(entropy)
+print(entropy)
+```"
+"1","[1] 2.207555
+"

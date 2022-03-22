@@ -1,0 +1,13 @@
+"0","```r
+# Convert from data frame to matrix
+bcmatrix <-as.matrix(bc_encoded)
+# bcmatrix
+# Remove the dimension names
+dimnames(bcmatrix) <- NULL
+# The features are the first columns of the matrix (the last two columns are one hat encoding of Y)
+features <- scale(bcmatrix[, 1:30])
+# View(features)
+# The y variates are the last two columns of bcmatrix
+y_encoded <-bcmatrix[, 31:32]
+#View(y_encoded)
+```"

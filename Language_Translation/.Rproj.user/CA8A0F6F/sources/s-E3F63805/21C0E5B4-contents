@@ -1,0 +1,395 @@
+---
+title: "Homework 2 Submission"
+author: "Max Lee Kang Bin 1004294"
+date: "March 4,2022"
+output: html_notebook
+---
+
+# Libraries used
+
+```{r, echo=TRUE,warning=FALSE,message=FALSE}
+# Include your libraries here:
+library(ggplot2)
+library(MASS) # for parallel coordinates plot
+library(dplyr)
+library(keras)
+library(tidyr)
+library(stringr)
+library(conflicted) # useful for debugging
+# The MASS package has functions for filter() and select(): a conflict with dplyr
+conflict_prefer("filter", "dplyr")  # use filter() from dplyr
+conflict_prefer("select", "dplyr") # use select() from dplyr
+```
+
+# Project Plan
+
+Provide a basic plan for your project. It does not have to be your final plan.
+
+* Teammate (if any)? *Choo Yong Sheng*
+* Topic? *RNN*
+* What theoretical concept(s) must be explained? *Math behind each RNN layer, how information is transmitted and how predictions are made. When to use RNN vs ANN vs CNN.*
+* Backtracking: What simpler concepts can be used to explain it (them)? *Low-dimensional character prediction, time series. What will you assume your audience already knows? Backpropagation, softmax (classification), ReLU (activation functions), ANN and CNN.*
+* Where could this fit in this course? Before what, after what? *After CNN*
+* What could serve as a hook to capture the reader's interest? *Offering a potential solution to language translation*
+* What skill(s) will you teach ("How to...")? *How to create a base RNN.*
+* What might be the "wow" factor be in your project? (eg. a fun or surprising application, a cool plot, an R Shiny animation, a nice explanation of a theorem,...) *Language translation*
+
+# Normalized Exponential Function
+
+Suppose we have a neural network that can produce numerical scores on classifying data into three groups: Lion, Tiger, and Bear. Let $s=(s_1,s_2,s_3)$ denote a score vector where $s_1$ is the score for Lion and $s_3$ is the score for Bear. Let $p_j(s)$ denote the normalized exponential function applied to this score vector for target group $j$, $j\in \{1,2,3\}$:
+
+$$
+\begin{align}
+p_j(s)&=\frac{e^{s_j}}{\sum_{k=1}^3e^{s_k}}\\
+&=\frac{e^{s_j}}{e^{s_1}+e^{s_2}+e^{s_3}}\\
+\end{align}
+$$
+
+**Required (1):**
+
+* Derive an expression for the partial derivative of $p_2(s)$ with respect to score $s_2$. Be sure to simplify your expression using the quantity $p_2(s)$ where possible:
+
+$$
+\begin{align}
+\frac{\partial p_2(s)}{\partial s_2}&=-\frac{e^{2s_2}}{(e^{s_1}+e^{s_2}+e^{s_3})^2} + \frac{e^{s_2}}{(e^{s_1}+e^{s_2}+e^{s_3})}\\
+&=\frac{e^{s_2}}{(e^{s_1}+e^{s_2}+e^{s_3})}[1 - \frac{e^{s_2}}{(e^{s_1}+e^{s_2}+e^{s_3})}]\\
+&= p_2 [1-p_2]
+\end{align}
+$$
+
+**Required (2):**
+
+Given a score vector $s=(10,s_2,10)$, use ggplot with ```geom_point()``` to plot the partial derivative $\frac{\partial p_2(s)}{\partial s_2}$ for values of $s_2$ ranging over $[0,20]$. Be sure to choose a step size so that you can spot the inflection points in the resulting curve. 
+
+
+```{r}
+s2 <- seq(0, 20, 0.1)
+delta_s2 <- c()
+for(i in 1:length(s2)){
+  p2 <- (exp(s2[i]) / (exp(10) + exp(s2[i]) + exp(10)))
+  delta_s2 <- c(delta_s2, p2*(1-p2))
+}
+df <- data.frame(s2 = s2, delta_s2 = delta_s2)
+ggplot(data=df, mapping=aes(x=s2, y=delta_s2))+geom_point()
+```
+
+
+# Entropy and Cross-Entropy
+
+Suppose we have a language of 8 words and their probabilities of occurrence in any message are given by the following table:
+
+![](ProbabilityDist.png)
+
+**Required (1):** Compute the entropy of this language.
+
+```{r}
+p <- c(1/32,8/32,15/32,3/32,1/32,1/32,1/32,2/32)
+entropy <- c()
+for(i in 1:length(p)){
+  each_entropy <- p[i] * log2(p[i])
+  entropy <- c(entropy, each_entropy)
+}
+entropy <- -sum(entropy)
+print(entropy)
+```
+
+**Required (2):** What is the maximum entropy for this language?
+
+```{r}
+maxentropy <- log2(length(p))
+print(maxentropy)
+```
+
+**Required (3):** Suppose the probabilities we are working with are not the true probabilities of word occurrence in this language. But from a sample of messages we observe the following frequencies of these words:
+
+![](Frequencies.png)
+
+Use the probabilities with the observed frequencies to compute the cross-entropy of our model.
+
+```{r}
+
+dfwords <- as.data.frame(list(Class=c("Rat","Ox","Tiger","Rabbit","Dragon","Snake","Horse","Sheep"),Prob=c(1/32,8/32,15/32,3/32,1/32,1/32,1/32,2/32),Freq=c(3,24,50,9,3,2,3,10)))
+print(dfwords)
+q <- dfwords$Freq / sum(dfwords$Freq)
+dfwords$q <- q
+#print(q)
+dfwords$cross_entropy <- dfwords$q * log2(dfwords$Prob)
+cross_entropy <- -sum(dfwords$cross_entropy)
+# dfwords
+print(cross_entropy)
+```
+
+
+
+# Classification with Keras
+
+We will do a straightforward Keras analysis of breast cancer data with a minimum of data wrangling. This model is suggested by the reference
+[Breast Cancer](https://www.kaggle.com/pablocastilla/classification-with-keras/notebook). There they use three hidden layers for their model. We will use the same Breast Cancer Wisconsin (Diagnostic) Data Set from Kaggle, available [here](https://www.kaggle.com/pablocastilla/classification-with-keras/data).
+
+```{r}
+# Classification with Keras
+# Read in the data (from https://www.kaggle.com/pablocastilla/classification-with-keras/data)
+raw_data <- read.csv("data.csv")
+#View(raw_data)
+# Drop the first and last columns (they contain no relevant data)
+numcolumns <- ncol(raw_data)
+bc_data <- raw_data %>% select(-1,-all_of(numcolumns))
+# The number of features (X variables) is numcolumns -3
+numfeatures <- numcolumns-3
+```
+
+
+
+```{r}
+# View(bc_data)
+# Now, let's find a way to visualize the data.
+# Let's try parallel coordinates from the MASS package
+# Example: https://r-charts.com/ranking/parallel-coordinates/
+bc_data_plot <- bc_data
+# First convert the categorical column to an integer column
+bc_data_plot$diagnosis <- factor(bc_data_plot$diagnosis)
+bc_data_plot$diagnosis <- as.integer(unclass(bc_data_plot$diagnosis))
+head(bc_data_plot) 
+# The value 1 represents a diagnosis of "benign"; the value 2 represents "malignant".
+```
+
+```{r}
+all_colors <- c("lightgray","blue") # blue will represent malignant diagnosis, lightgray is benign
+# Sort so that the malignant cases are on top
+bc_plotdata <- bc_data_plot[, c(1:30)] %>% arrange(-diagnosis)
+# bc_plotdata
+bc_colors <- all_colors[factor(bc_plotdata$diagnosis)]
+parcoord(bc_plotdata , col = bc_colors )
+```
+
+```{r}
+# Sort so that the benign cases are on top
+bc_plotdata <- bc_data_plot[, c(1:30)] %>% arrange(diagnosis)
+bc_colors <- all_colors[factor(bc_plotdata$diagnosis)]
+parcoord(bc_plotdata , col = bc_colors )
+```
+
+Some cancers should be quite easy to spot: they are clearly higher in some dimensions than the benign cases. Others might be difficult to discern: they overlap benign cancers in several dimensions. There is lots more you can do with parallel coordinates (see "GetReadyParallelCoordinates.pdf").
+
+
+In lecture notes we showed how to use keras to do one-hot encoding. Suppose on an exam, keras isn't working for you. Let's figure out how to do it using tidyr.
+
+```{r}
+# Let's return to our original dataset, bc_data
+# View(bc_data)
+# Add a column of ones
+bc_data$ones <- 1
+# Use pivot_wider to create a column for each unique value in the diagnosis column
+bc_encoded <- bc_data %>% pivot_wider(names_from=diagnosis,values_from=ones) # converting a column into one how encoding type with column name being their previous column value
+# Replace the NA's with zeroes
+bc_encoded[is.na(bc_encoded)] <- 0
+# That's all there is to it.
+# View(bc_encoded)
+# The last two columns of our encoded data frame are the one hot encoding of the diagnosis column
+# The diagnosis column has been removed.
+```
+
+```{r}
+# Convert from data frame to matrix
+bcmatrix <-as.matrix(bc_encoded)
+# bcmatrix
+# Remove the dimension names
+dimnames(bcmatrix) <- NULL
+# The features are the first columns of the matrix (the last two columns are one hat encoding of Y)
+features <- scale(bcmatrix[, 1:30])
+# View(features)
+# The y variates are the last two columns of bcmatrix
+y_encoded <-bcmatrix[, 31:32]
+#View(y_encoded)
+```
+
+As in lecture, divide the rows into training sets and test sets, for both features and y. Save 30% of the data for testing.
+
+```{r}
+
+rowcount <- nrow(features)
+set.seed(1004294)
+trainrows <- sort(sample(rowcount, rowcount*0.7))
+trainFeatures <- features[trainrows, ]
+testFeatures <- features[-trainrows, ]
+trainLabels <- y_encoded[trainrows, ]
+testLabels <- y_encoded[-trainrows, ]
+# nrow(testFeatures)
+```
+
+* Set the test sets aside: they should be used only once.
+* Use trainFeatures and trainLabels to explore different models.
+
+**Required: Model 1**
+
+* Construct a multinomial logistic regression model (one layer) and print a summary of the model. 
+
+```{r}
+model1 <-  keras_model_sequential()
+model1 %>% 
+  layer_dense(units = 2, activation = "softmax", input_shape = 30)
+model1 %>% summary
+```
+
+* Compile the model using stochastic gradient descent (sgd) and add a metric for "accuracy". Fit the model using 300 epochs, a batch size of 20, and use 20% of the training data for validation. Plot the history of the fitting process.
+
+```{r}
+# compile the model
+model1 %>% compile(
+  loss      = 'categorical_crossentropy',
+  optimizer = optimizer_sgd(),
+  metrics=c('accuracy')
+)
+# fit the model
+history = model1 %>% fit(
+  x = trainFeatures, y = trainLabels,
+  epochs           = 300,
+  batch_size = 20,
+  validation_split = 0.2,
+)
+plot(history)
+```
+
+* Extract the accuracy of the model as the last observed val_accuracy recorded. Print the accuracy rounded to three decimal places.
+
+
+```{r}
+# extract the accuracy of Model 1
+last_epoch <- max(history$params$epochs)
+accuracy <- history$metrics$val_accuracy[last_epoch]
+print(str_c("Model 1 accuracy:",accuracy))
+```
+
+**Required: Model 2**
+
+* Add a hidden layer with ReLU activation and 30 nodes; Place an L1 regularizer on the bias components and and L1 regularizer on the activity components (weights); Use a penalty factor of 0.01 for the regularizers; Print a summary of the model. 
+
+```{r}
+model2 <-  keras_model_sequential()
+model2 %>% 
+  layer_dense(units = 30, activation = 'relu', input_shape = 30,
+              bias_regularizer = regularizer_l1(l = 0.01),
+              activity_regularizer = regularizer_l1(l = 0.01)) %>% 
+    layer_dense(units = 2, activation = 'softmax')
+model2%>% summary
+```
+
+* Compile and fit the model using the same parameters used for model 1; Plot the history.
+
+```{r}
+# compile the model
+model2 %>% compile(
+  loss      = 'categorical_crossentropy',
+  # optimizer = optimizer_rmsprop(),
+  optimizer = optimizer_sgd(),
+  metrics=c('accuracy')
+)
+# fit the model
+history = model2 %>% fit(
+  x = trainFeatures, y = trainLabels,
+  epochs           = 300,
+  batch_size = 20,
+  validation_split = 0.2,
+)
+plot(history)
+```
+
+* Extract and print the accuracy of model 2 as you did for model 1
+
+```{r}
+# extract the accuracy of Model 2
+last_epoch <- max(history$params$epochs)
+accuracy <- history$metrics$val_accuracy[last_epoch]
+print(str_c("Model 2 accuracy:",accuracy))
+```
+
+**Required: Model 3**
+
+* Add two more hidden layers identical to first.
+You may experiment with different values of the regularizer parameters. Based on my limited experimentation, I suggest $l=0.1$ for the bias and $l=0.05$ for the activity; Print a summary of your model.
+
+```{r}
+model3 <-  keras_model_sequential()
+model3 %>% 
+  layer_dense(units = 30, activation = 'relu', input_shape = 30,
+            bias_regularizer = regularizer_l1(l = 0.1),
+            activity_regularizer = regularizer_l1(l = 0.05))%>% 
+
+  layer_dense(units = 30, activation = 'relu', input_shape = 30,
+              bias_regularizer = regularizer_l1(l = 0.1),
+              activity_regularizer = regularizer_l1(l = 0.05))%>% 
+
+  layer_dense(units = 30, activation = 'relu', input_shape = 30,
+              bias_regularizer = regularizer_l1(l = 0.1),
+              activity_regularizer = regularizer_l1(l = 0.05)) %>% 
+  layer_dense(units = 2, activation = 'softmax')
+model3%>% summary
+```
+
+
+* Compile and fit model 3 using the same parameters as for models 1 and 2.
+
+```{r}
+# compile the model
+model3 %>% compile(
+  loss      = 'categorical_crossentropy',
+  # optimizer = optimizer_rmsprop(),
+  optimizer = optimizer_sgd(),
+  metrics=c('accuracy')
+)
+# fit the model
+history = model3 %>% fit(
+  x = trainFeatures, y = trainLabels,
+  epochs           = 300,
+  batch_size = 20,
+  validation_split = 0.2,
+)
+plot(history)
+```
+
+* Extract and print the accuracy of Model 3.
+
+```{r}
+# extract the accuracy of Model 3
+last_epoch <- max(history$params$epochs)
+accuracy <- history$metrics$val_accuracy[last_epoch]
+print(str_c("Model 3 accuracy:",accuracy))
+```
+
+**Required: Final test of Model 3**
+
+* Fit your (final) model 3 on all the test data (no validation); plot the history.
+
+```{r}
+# Run model 3 on the full training set
+history = model3 %>% fit(
+  x = trainFeatures, y = trainLabels,
+  epochs           = 300,
+  batch_size = 20
+)
+plot(history)
+```
+
+* Use the evaluate function to compute the performance of model 3 on the test data.
+
+```{r}
+perf = model3 %>% evaluate(x = testFeatures, y= testLabels)
+print(perf)
+```
+
+* Extract the accuracy and print it (to 2 significant digits). (My result is not as good as in the Kaggle tutorial.)
+
+```{r}
+accuracy <- as.numeric(perf[2])
+print(str_c("Accuracy of the model was ",round(accuracy * 100, 2),"% on the test data"))
+```
+
+
+# Source
+
+The Kaggle notebook on the Breast Cancer data:
+https://www.kaggle.com/pablocastilla/classification-with-keras/notebook
+
+You might also look at Diabetes Prediction with Keras:
+https://valueml.com/diabetes-prediction-using-keras-in-python/
+Get the dataset from kaggle: https://www.kaggle.com/kumargh/pimaindiansdiabetescsv.

@@ -30,6 +30,7 @@ library(dplyr)
 library(png)
 library(reticulate)
 library(abind)
+library(ramify)
 ```
 
 
@@ -311,8 +312,8 @@ model_RNN %>% compile(
 
 history = model_RNN %>% fit(
   x = tensor_x, y = tensor_y,
-  epochs           = 10,
-  batch_size = 1024,
+  epochs           = 3,
+  batch_size = 512,
   validation_split = 0.2,
 )
 plot(history)
@@ -321,6 +322,15 @@ plot(history)
 
 # Prediction
 
+```{r}
+tail(attributes(y_tk[[1]])$names)
+y_tk[[1]]$'<PAD>' <- 0
+tail(y_tk[[1]])
+# y_tk[[1]]$"<PAD>"
+x_tk[[1]]
+```
+
+
 ## Obtaining the output for prediction
 ```{r}
 # str(model_RNN)
@@ -328,11 +338,15 @@ single <- tail(tensor_x)[1, ,1]
 single <- matrix(single, ncol=1)
 single <- array(single, c(dim(single)[1], dim(single)[2], 1))
 single
-matrix(tensor_x[1, ,], nrow=1)
+matrix(tensor_x[50, ,], nrow=1)
 # model_RNN$input
 predict_output <- model_RNN %>% predict(matrix(tensor_x[1, ,], nrow=1))
 predict_output
 # length(y_tk[[1]])
+logits_to_text(predict_output, y_tk)
+dim(predict_output)
+print(argmax(predict_output, FALSE))
+predict_output
 
 ```
 ## Need to add the padding into the word_list for y_tk and x_tk

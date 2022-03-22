@@ -1,0 +1,14 @@
+"0","```r
+# Let's return to our original dataset, bc_data
+# View(bc_data)
+# Add a column of ones
+bc_data$ones <- 1
+# Use pivot_wider to create a column for each unique value in the diagnosis column
+bc_encoded <- bc_data %>% pivot_wider(names_from=diagnosis,values_from=ones) # converting a column into one how encoding type with column name being their previous column value
+# Replace the NA's with zeroes
+bc_encoded[is.na(bc_encoded)] <- 0
+# That's all there is to it.
+# View(bc_encoded)
+# The last two columns of our encoded data frame are the one hot encoding of the diagnosis column
+# The diagnosis column has been removed.
+```"

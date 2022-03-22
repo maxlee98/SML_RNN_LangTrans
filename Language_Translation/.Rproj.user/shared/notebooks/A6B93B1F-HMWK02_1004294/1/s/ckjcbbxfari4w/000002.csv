@@ -1,0 +1,11 @@
+"0","```r
+# Classification with Keras
+# Read in the data (from https://www.kaggle.com/pablocastilla/classification-with-keras/data)
+raw_data <- read.csv(\"data.csv\")
+#View(raw_data)
+# Drop the first and last columns (they contain no relevant data)
+numcolumns <- ncol(raw_data)
+bc_data <- raw_data %>% select(-1,-all_of(numcolumns))
+# The number of features (X variables) is numcolumns -3
+numfeatures <- numcolumns-3
+```"

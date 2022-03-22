@@ -1,0 +1,930 @@
+---
+title: "Model Selection Techniques"
+author: "Peter Jackson"
+date: "Term 7, 2022"
+output:
+  ioslides_presentation:
+    smaller: true
+    css: sutd-asi.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning=FALSE, message=FALSE)
+```
+
+## Packages Used in this Lecture
+
+```{r, echo=TRUE,warning=FALSE,results='hide',error=FALSE,message=FALSE}
+library(ggplot2)
+library(stringr)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(keras)
+library(deepviz)
+library(ramify) # for the argmax() function
+```
+
+## Overview
+
+1. *Motivating Examples: Model Selection Problems*
+2. How many nodes to put in our neural network hidden layers
+3. How many features to extract from the input data (polynomial terms in this case)
+4. Which explanatory variables to use in multiple linear regression
+5. *Statistical Techniques*
+6. Statistical Tests: p-values and F-statistic
+7. Maximize Adjusted R-Squared
+8. Minimize the AIC
+9. *Machine Learning Techniques*
+10. Add the L1 Regularizer  (LASSO Regression)
+11. Add the L2 Regularizer (Ridge Regression)
+12. Add a mix of L1 and L2 Regularizers (Elastic Net Regularization)
+13. *Regularization in Keras*
+14. Summary
+
+
+## Pre-Work Motivation
+
+* The Post-Work Exercise in the Classifier Network Application lecture asked you to run the iris classifier model with more and more nodes in the hidden layer until you could clearly see the phenomenon of *overfitting*.
+* The code for this exercise can be found in the file "Overfitting.R" available for download from the course website.
+* We will not reproduce that code here but simply show some images from the output.
+
+
+## Overview
+
+1. *Motivating Examples: Model Selection Problems*
+2. **How many nodes to put in our neural network hidden layers**
+3. How many features to extract from the input data (polynomial terms in this case)
+4. Which explanatory variables to use in multiple linear regression
+5. *Statistical Techniques*
+6. Statistical Tests: p-values and F-statistic
+7. Maximize Adjusted R-Squared
+8. Minimize the AIC
+9. *Machine Learning Techniques*
+10. Add the L1 Regularizer  (LASSO Regression)
+11. Add the L2 Regularizer (Ridge Regression)
+12. Add a mix of L1 and L2 Regularizers (Elastic Net Regularization)
+13. *Regularization in Keras*
+14. Summary
+
+## The Iris Classifier Network Model
+
+* This was the model we ended with in the Classifier Network Application lecture:
+```{r}
+# A hidden layer and RELU Activation
+model3 = keras_model_sequential()
+model3 %>% 
+  layer_dense(units = 4, activation = 'relu', input_shape = 4) %>% 
+  layer_dense(units = 3, activation = 'softmax')
+model3 %>% compile(
+  loss      = 'categorical_crossentropy',
+  optimizer = optimizer_rmsprop(),
+  metrics   = c('accuracy')
+)
+# Train the Neural Network
+history = model3 %>% fit(
+  x = x_trainset, y = trainLabels,
+  epochs = 200,
+  batch_size =20,
+  validation_split = .2
+)
+plot(history)
+```
+
+## Plot History for Units=4
+
+```{r, echo=FALSE, out.height="50%",out.width="50%",fig.align="center", fig.cap="Iris Classifier Progress Units = 4"}
+knitr::include_graphics("Units04.png")
+```
+
+* Focus on the accuracy plots: the red dots measure accuracy against the training set, the cyan dots measure accuracy against the validation set
+* Both series are non-decreasing after about 75 epochs
+* No evidence of overfitting
+
+## Plot History for Units=24
+
+* Here we run with the hidden layer having 24 nodes
+```{r, echo=FALSE, out.height="50%",out.width="50%",fig.align="center", fig.cap="Iris Classifier Progress Units = 24"}
+knitr::include_graphics("Units24.png")
+```
+* We see the accuracy on the validation set starting to decline after 125 epochs
+* This suggests overfitting
+
+## Plot History for Units=48
+
+* Here we run with the hidden layer having 48 nodes
+```{r, echo=FALSE, out.height="50%",out.width="50%",fig.align="center", fig.cap="Iris Classifier Progress Units = 48"}
+knitr::include_graphics("Units48.png")
+```
+* We see the accuracy on the validation set having a strong decline after 100 epochs
+* The loss function applied to the validation set is also increasing at the end
+* This clearly suggests that the model is overfitting the data
+
+## Run Units=48 With Regularization L1 
+
+* It is easy to add regularization to a layer in ```keras```
+* Here is how:
+```{r}
+model5 = keras_model_sequential()
+model5 %>% 
+  layer_dense(units = 48, activation = 'relu', input_shape = 4,
+              activity_regularizer = regularizer_l1(l = 0.01)) %>% 
+  layer_dense(units = 3, activation = 'softmax')
+```
+* We will explain the choices for regularization in this lecture
+* But let's see the impact first
+
+## Plot Units=48 with Regularization L1
+
+* Here we run with the hidden layer having 48 nodes but with regularization
+```{r, echo=FALSE, out.height="50%",out.width="50%",fig.align="center", fig.cap="Iris Classifier Progress Units = 48 With Regularization"}
+knitr::include_graphics("Units48Regularized.png")
+```
+* We see the accuracy on the validation set does not drop off as the algorithm progresses
+* This suggests that we have solved the overfitting problem
+
+
+## Overview
+
+1. *Motivating Examples: Model Selection Problems*
+2. How many nodes to put in our neural network hidden layers
+3. **How many features to extract from the input data (polynomial terms in this case)**
+4. Which explanatory variables to use in multiple linear regression
+5. *Statistical Techniques*
+6. Statistical Tests: p-values and F-statistic
+7. Maximize Adjusted R-Squared
+8. Minimize the AIC
+9. *Machine Learning Techniques*
+10. Add the L1 Regularizer  (LASSO Regression)
+11. Add the L2 Regularizer (Ridge Regression)
+12. Add a mix of L1 and L2 Regularizers (Elastic Net Regularization)
+13. *Regularization in Keras*
+14. Summary
+
+
+## Motivating Example: Linear Regression
+
+The ```mtcars``` dataset in R has columns for fuel efficiency (MPG) and engine displacement (disp).
+
+```{r}
+dataset <- mtcars %>% select(disp,mpg)
+head(dataset)
+```
+
+## Plot mpg vs. disp 
+
+It looks like the two variables are related, although possibly in a nonlinear fashion.
+
+```{r,fig.height = 3,fig.width=5,fig.align="center",fig.cap="Fuel Efficiency vs. Engine Displacement"}
+rawplot <- ggplot(dataset,mapping=aes(disp,mpg))+geom_point()
+rawplot
+```
+
+## A Linear Fit 
+
+We can apply a linear model to fit the data.
+```{r}
+model <- mpg ~ disp
+fit <- lm(model, data = dataset)
+coeff <- coefficients(fit);intercept <- coeff[1];slope <- coeff[2]
+roundIntercept <-round(coeff[1],1) 
+roundSlope <- round(coeff[2],3)
+# Equation of the line : 
+eq <-  str_c("mpg = ",roundIntercept," + ", roundSlope, "*disp ")
+print(eq)
+```
+
+## A Linear Fit 
+
+The fit looks reasonable, although a polynomial might be better.
+
+```{r,fig.height = 3,fig.width=5,fig.align="center",fig.cap="The Regression Line"}
+rawplot <- ggplot(dataset,mapping=aes(disp,mpg))+geom_point()
+rawplot + geom_abline(intercept = intercept, slope =slope,colour="red")
+```
+
+## A Quadratic Fit 
+
+We can apply a quadratic model to fit the data.
+```{r}
+datarange <- 0:99*((max(dataset$disp)-min(dataset$disp))/100)+min(dataset$disp)
+dataset$disp_2 <- dataset$disp^2
+model <- mpg ~ disp + disp_2
+fit <- lm(model, data = dataset)
+coeff <- coefficients(fit);
+roundIntercept <-round(coeff[1],1) 
+roundSlope <- round(coeff[2],3)
+roundQuadratic <- round(coeff[3],6)
+fitfunction <- function(x,coeff){coeff[1]+coeff[2]*x+coeff[3]*x^2}
+# Equation of the line : 
+eq <-  str_c("mpg = ",roundIntercept," + ", roundSlope, "*disp + ",roundQuadratic,"*disp^2")
+print(eq)
+```
+
+## A Quadratic Fit 
+
+```{r,fig.height = 3,fig.width=5,fig.align="center",fig.cap="The Regression Line"}
+datapredict <- map_dbl(datarange,fitfunction,coeff) 
+datafit <- as.data.frame(list(x=datarange,y=datapredict))
+rawplot <- ggplot(dataset,mapping=aes(disp,mpg))+geom_point()
+rawplot + geom_line(data=datafit,mapping=aes(x=x,y=y))
+```
+
+If the quadratic looks good, perhaps we should try a cubic polynomial?
+
+## A Cubic Model
+
+We can apply a cubic model to fit the data.
+```{r}
+dataset$disp_3 <- dataset$disp^3
+model <- mpg ~ disp + disp_2 + disp_3
+fit <- lm(model, data = dataset)
+coeff <- coefficients(fit);
+roundIntercept <-round(coeff[1],1) 
+roundSlope <- round(coeff[2],3)
+roundQuadratic <- round(coeff[3],6)
+roundCubic <- round(coeff[4],6)
+fitfunction <- function(x,coeff){coeff[1]+coeff[2]*x+coeff[3]*x^2+coeff[4]*x^3}
+# Equation of the line : 
+eq <-  str_c("mpg = ",roundIntercept," + ", roundSlope, "*disp + ",roundQuadratic,"*disp^2 + ",roundCubic,"*disp^3")
+print(eq)
+```
+
+## A Cubic Fit 
+
+```{r,fig.height = 3,fig.width=5,fig.align="center",fig.cap="The Regression Line"}
+datapredict <- map_dbl(datarange,fitfunction,coeff) 
+datafit <- as.data.frame(list(x=datarange,y=datapredict))
+rawplot <- ggplot(dataset,mapping=aes(disp,mpg))+geom_point()
+rawplot + geom_line(data=datafit,mapping=aes(x=x,y=y))
+```
+
+If the cubic looks good, perhaps we should try a quartic polynomial?
+
+## A Quartic Fit 
+
+We can apply a quartic model to fit the data.
+```{r}
+dataset$disp_4 <- dataset$disp^4
+model <- mpg ~ disp + disp_2 + disp_3+disp_4
+fit <- lm(model, data = dataset)
+coeff <- coefficients(fit);
+roundIntercept <-round(coeff[1],1) 
+roundSlope <- round(coeff[2],3)
+roundQuadratic <- round(coeff[3],6)
+roundCubic <- round(coeff[4],6)
+roundQuartic <- round(coeff[5],12)
+fitfunction <- function(x,coeff){coeff[1]+coeff[2]*x+coeff[3]*x^2+coeff[4]*x^3+coeff[5]*x^4}
+# Equation of the line : 
+eq <-  str_c("mpg = ",roundIntercept," + ", roundSlope, "*disp + ",roundQuadratic,"*disp^2 + ",roundCubic,"*disp^3 + ",roundQuartic,"*disp^4")
+print(eq)
+```
+
+## A Quartic Fit 
+
+* Adding the quartic term doesn't seem to help
+
+```{r,fig.height = 3,fig.width=5,fig.align="center",fig.cap="The Regression Line"}
+datapredict <- map_dbl(datarange,fitfunction,coeff) 
+datafit <- as.data.frame(list(x=datarange,y=datapredict))
+rawplot <- ggplot(dataset,mapping=aes(disp,mpg))+geom_point()
+rawplot + geom_line(data=datafit,mapping=aes(x=x,y=y))
+```
+
+
+## Overview
+
+1. *Motivating Examples: Model Selection Problems*
+2. How many nodes to put in our neural network hidden layers
+3. How many features to extract from the input data (polynomial terms in this case)
+4. **Which explanatory variables to use in multiple linear regression**
+5. *Statistical Techniques*
+6. Statistical Tests: p-values and F-statistic
+7. Maximize Adjusted R-Squared
+8. Minimize the AIC
+9. *Machine Learning Techniques*
+10. Add the L1 Regularizer  (LASSO Regression)
+11. Add the L2 Regularizer (Ridge Regression)
+12. Add a mix of L1 and L2 Regularizers (Elastic Net Regularization)
+13. *Regularization in Keras*
+14. Summary
+
+
+## Multiple Linear Regression
+
+As another example, consider the problem of selecting explanatory variables in multiple linear regression.
+
+
+```{r}
+# Read in the cheddar cheese data (original source: http://openmv.net/)
+ccdata <- read.csv("cheddar-cheese.csv")
+head(ccdata)
+```
+
+## Visualize the Data
+
+```{r}
+plot(ccdata)
+```
+
+## Statistical Models We Could Try
+
+```{r}
+models <- list(); results <- list(); summaries <- list()
+# Try each variable separately
+models[[1]] <- Taste ~ Acetic
+models[[2]] <- Taste ~ H2S
+models[[3]] <- Taste ~ Lactic
+# Try them all together
+models[[4]] <- Taste ~ Acetic+ H2S + Lactic
+# Remove the constant and Ascetic
+models[[5]] <- Taste ~ 0 + H2S + Lactic
+# Put the constant back in
+models[[6]] <- Taste ~ H2S + Lactic
+# Run the models
+for (i in 1:6){
+  results[[i]] <- lm(models[[i]],ccdata)
+  summaries[[i]] <- summary(results[[i]])
+}
+
+```
+
+Which model is best? How should we judge?
+
+## Parsimony and Overfitting
+
+* As you can see from the examples we have modeling choices:
+
+1. How many nodes to put in our neural network hidden layers
+2. How many features to extract from the input data (polynomial terms in this case)
+3. Which explanatory variables to use in multiple linear regression
+
+* How should we choose what variation to go with? What model do we select?
+* In general, the loss function will be reduced as we add more nodes or features
+* But we risk *overfitting* the data: the fit is great for the training set but fails for the test or validation set: the results do not *generalize* well
+* Or in the case of the disp vs mpg fit, we end with tiny coefficients on some of the features
+* If you handed a chef a main dish recipe that listed 47 spices but some of them with microscopic quantities he or she would say you are being ridiculous
+* We want models that fit our data well, are accurate on validation data, and are *parsimonious*, that is, they use as few parameters as are reasonable
+
+## Model Selection
+
+* As you can anticipate, the activity of model selection is something of an art with some amount of judgement involved
+* There are different techniques for model selection as well as parameters which govern their behavior
+* You must select and tune a technique to assist you in model selection
+* We cover a number of techniques
+1. Statistical tests: p-values and F-statistic
+2. Maximize Adjusted R-Squared
+2. Minimize the AIC
+2. Add the L1 Regularizer to the Loss Function (LASSO Regression)
+3. Add the L2 Regularizer to the Loss Function (Ridge Regression)
+4. Add a mix of L1 and L2 Regularizers to the Loss Function
+
+
+## Overview
+
+1. *Motivating Examples: Model Selection Problems*
+2. How many nodes to put in our neural network hidden layers
+3. How many features to extract from the input data (polynomial terms in this case)
+4. Which explanatory variables to use in multiple linear regression
+5. *Statistical Techniques*
+6. **Statistical Tests: p-values and F-statistic**
+7. Maximize Adjusted R-Squared
+8. Minimize the AIC
+9. *Machine Learning Techniques*
+10. Add the L1 Regularizer  (LASSO Regression)
+11. Add the L2 Regularizer (Ridge Regression)
+12. Add a mix of L1 and L2 Regularizers (Elastic Net Regularization)
+13. *Regularization in Keras*
+14. Summary
+
+
+## Statistical Tests: p-values
+
+* The p-value measures the probability that we would see data like this if the coefficient were actually zero
+```{r}
+print(models[[4]])
+summary4 <- summaries[[4]]
+summary4$coefficients
+```
+
+* Low p-value ("Pr(>|t|)<0.05") suggests H2S and Lactic coefficients really should be non-zero
+
+## Statistical Tests: F statistic
+
+* P-values are individual tests
+* With 4 explanatory variables (intercept+Acetic+H2S+Lactic), probability that one of them will be less than 0.05 is $1-(0.95)^4$ or $18.5\%$
+* The more explanatory variables you have, the more likely some of them will appear to be significant
+* Suppose I have two models with sets of explanatory variables $P_1$ and $P_2$ where $P_1\subset P_2$
+* That is, $P_2$ adds extra explanatory variables to the $P_1$ set
+* We would expect $SSE_1\geq SSE_2$, since adding variables should improve $SSE$
+* Define the F-statistic:
+
+$$
+F=\frac{\left(\frac{SSE_1-SSE_2}{p_2-p_1}\right)}{\left(\frac{SSE_2}{n-p_2}\right)}
+$$
+
+where $n$ is the number of observations, $p_1=|P_1|$ and $p_2=|P_2|$
+
+## The F-statistic for Linear Regression
+
+* The ```lm()``` function computes the F-statistic for $P_1=\{\text{intercept only}\}$ and $P_2=\{\text{intercept and all co-variates}\}$
+
+```{r}
+summary4$fstatistic
+```
+
+* Null hypothesis: $P_1$ explains the data just as well as $P_2$
+* Under the null hypothesis, the F-statistic has an F distribution with degrees of freedom $(p_2-p_1,n-p_2)$
+* So, to reject the null hypothesis, we need to see a large value of the F-statistic
+
+
+
+## Is F-Statistic Large?
+
+
+```{r}
+f <- (0:100)/4; df1 <- summary4$fstatistic[2];df2 <- summary4$fstatistic[3]
+CumDist <- map_dbl(f,function(x){pf(x,df1,df2)})
+plotData <- as.data.frame(list(f=f,CumDist=CumDist))
+ggplot(plotData,aes(x=f,y=CumDist))+geom_line()+geom_vline(xintercept=summary4$fstatistic[1])
+```
+
+## The F-Statistic p-value
+
+* When compared to the cumulative F distribution, the F-statistic is quite large
+* To have confidence that $P_2$ gives a superior model to $P_1$, we need to see a small p-value under the null hypothesis
+* The p-value for the F-statistic (ie. "P{F>F-statistic}") is quite small:
+
+```{r}
+pf(summary4$fstatistic[1],df1,df2,lower.tail=F)
+```
+
+## 'lm()' Computes This for Us
+
+```{r}
+print(summary4)
+```
+
+
+## Overview
+
+1. *Motivating Examples: Model Selection Problems*
+2. How many nodes to put in our neural network hidden layers
+3. How many features to extract from the input data (polynomial terms in this case)
+4. Which explanatory variables to use in multiple linear regression
+5. *Statistical Techniques*
+6. Statistical Tests: p-values and F-statistic
+7. **Maximize Adjusted R-Squared**
+8. Minimize the AIC
+9. *Machine Learning Techniques*
+10. Add the L1 Regularizer  (LASSO Regression)
+11. Add the L2 Regularizer (Ridge Regression)
+12. Add a mix of L1 and L2 Regularizers (Elastic Net Regularization)
+13. *Regularization in Keras*
+14. Summary
+
+
+## (From DBA Course)
+
+```{r, echo=FALSE, out.height="75%",out.width="75%",fig.align="center", fig.cap="Coefficient of Determination (R-Squared)"}
+knitr::include_graphics("R-Squared.png")
+```
+
+## Relation of F-Statistic to R-squared
+
+* $SSTot$ corresponds to $SSE_1$ for $P_1=\{\text{intercept only}\}$
+* $SSE$ corresponds to $SSE_2$ for $P_2=\{\text{intercept and all co-variates}\}$
+* So the F-statistic and R-squared are closely related:
+
+$$
+\begin{align}
+F&=\frac{\left(\frac{SSTot-SSE}{p-1}\right)}{\left(\frac{SSE}{n-p}\right)}\\
+&=\left(\frac{SSTot}{SSE}-1\right)\frac{n-p}{p-1}\\
+&=\left(\frac{1}{1-R^2}-1\right)\frac{n-p}{p-1}\\
+\end{align}
+$$
+
+* If $R^2$ is close to 1, then the F-statistic will be large
+* But, unlike F-test, there is no statistical test for whether $R^2$ is 'large'
+
+## (From DBA Course)
+
+```{r, echo=FALSE, out.height="75%",out.width="75%",fig.align="center", fig.cap="Adjusted R-Squared"}
+knitr::include_graphics("Adjusted R-squared.png")
+```
+
+## Compare Models
+
+```{r}
+modelquality <- as.data.frame(list(id=1:6,model=as.character(models),adj.r.squared=map_dbl(summaries,function(x){x$adj.r.squared})))
+modelquality
+```
+
+* Looks like model 5 is best. But plot the result to be sure...
+
+## Is This What We Want?
+
+```{r}
+model5plotdata <- as.data.frame(list(actual=ccdata$Taste,fitted=results[[5]]$fitted.values))
+xlim=c(0,max(ccdata$Taste))
+ggplot(model5plotdata,aes(x=actual,y=fitted))+geom_point()+xlim(xlim)+ylim(xlim)+
+  geom_abline(slope=1,intercept=0)
+```
+
+
+## Overview
+
+1. *Motivating Examples: Model Selection Problems*
+2. How many nodes to put in our neural network hidden layers
+3. How many features to extract from the input data (polynomial terms in this case)
+4. Which explanatory variables to use in multiple linear regression
+5. *Statistical Techniques*
+6. Statistical Tests: p-values and F-statistic
+7. Maximize Adjusted R-Squared
+8. **Minimize the AIC**
+9. *Machine Learning Techniques*
+10. Add the L1 Regularizer  (LASSO Regression)
+11. Add the L2 Regularizer (Ridge Regression)
+12. Add a mix of L1 and L2 Regularizers (Elastic Net Regularization)
+13. *Regularization in Keras*
+14. Summary
+
+
+## Akaike Information Criterion
+
+* A superior metric to adjusted $R^2$
+
+* Let $L$ denote the likelihood of the data observed if the fitted model were true
+* Let $ln L$ denote the log of the likelihood
+* Let $p$ denote the number of coefficients estimated
+
+$$
+AIC=-2ln L+2p
+$$
+
+* Choose the model with the smallest AIC (highest log-likelihood less penalty for $p$)
+
+## Compare Models Using AIC
+
+```{r}
+modelquality$AIC<- map_dbl(results,function(x){AIC(x)})
+modelquality
+```
+
+* The AIC criterion favors model 6
+
+## This Is Better
+
+```{r}
+model6plotdata <- as.data.frame(list(actual=ccdata$Taste,fitted=results[[6]]$fitted.values))
+xlim=c(0,max(ccdata$Taste))
+ggplot(model6plotdata,aes(x=actual,y=fitted))+geom_point()+xlim(xlim)+ylim(xlim)+geom_abline(slope=1,intercept=0)
+```
+
+## Lots of Variates
+
+* The Ames housing data set is popular in machine learning classes
+* The goal is to predict (the log of) house prices in Ames, Iowa, based on house and neighborhood characteristics 
+* It requires data wrangling as well as model selection so we cover it separately
+
+```{r, echo=FALSE, out.height="75%",out.width="75%",fig.align="center", fig.cap="Ames Housing Data Variates"}
+knitr::include_graphics("ML_project_variables-1-1024x576.png")
+```
+
+
+## Overview
+
+1. *Motivating Examples: Model Selection Problems*
+2. How many nodes to put in our neural network hidden layers
+3. How many features to extract from the input data (polynomial terms in this case)
+4. Which explanatory variables to use in multiple linear regression
+5. *Statistical Techniques*
+6. Statistical Tests: p-values and F-statistic
+7. Maximize Adjusted R-Squared
+8. Minimize the AIC
+9. *Machine Learning Techniques*
+10. **Add the L1 Regularizer  (LASSO Regression)**
+11. **Add the L2 Regularizer (Ridge Regression)**
+12. Add a mix of L1 and L2 Regularizers (Elastic Net Regularization)
+13. *Regularization in Keras*
+14. Summary
+
+
+## Machine Learning Approach
+
+* In general, machine learning attempts to automate the model selection process by formulating prediction problems as optimization programs which balance loss function performance against penalty functions on parameter choices
+* Let $loss(y,x,\beta)$ denote a loss function defined on the data set $(y,x)$ and parameterized by $\beta$
+* Let $R(\beta)$ denote a penalty function, called a *regularizer*, on the parameters
+* Let $\lambda$ denote a user-specified trade-off parameter
+* The general machine learning program is to:
+
+$$
+\text{min}_{\beta}\text{ }\left\{loss(y,x,\beta)+\lambda R(\beta)\right\}
+$$
+
+* Think of this as a trade-off between model performance and model complexity
+* The loss function could be $SSE$ or $-ln(likelihood)$ or others
+* Our focus is on choices for $R(\beta)$
+
+## The L2 Norm
+
+* Given a vector $\beta=(\beta_1,\beta_2,\cdots,\beta_m)$, for example $\beta=(5,-3,2)$
+* The *L2 Norm* is given by the square root of the dot product of the vector with itself:
+
+$$
+\begin{align}
+||\beta||_2&=\sqrt{\beta\cdot\beta}\\
+&=\sqrt{\sum_{i=1}^m{\beta_i^2}}\\
+&=\sqrt{5^2+3^2+2^2}\\
+&=6.164414
+\end{align}
+$$
+
+* It is also known as the *Euclidean norm*, *Euclidean distance*, and *$l_2$ norm*
+* Think of it as the length of the parameter vector $\beta$
+
+## The L1 Norm
+
+* Given a vector $\beta=(\beta_1,\beta_2,\cdots,\beta_m)$, for example $\beta=(5,-3,2)$
+* The *L1 Norm* is given by sum of the absolute values of the Cartesian coordinates:
+
+$$
+\begin{align}
+||\beta||_1&=\sum_{i=1}^m{|\beta_i|}\\
+&=5+3+2\\
+&=10
+\end{align}
+$$
+
+* It is also known as the *Manhattan distance* and the *$l_1$ norm*
+* Think of it as the length of a [taxi cab trip](https://en.wikipedia.org/wiki/Taxicab_geometry)
+
+## The L2 Regularizer
+
+* The *L2 regularizer* is given by the square of the L2 norm:
+
+$$
+\begin{align}
+R_2(\beta)&=||\beta||_2^2\\
+&=\beta\cdot\beta\\
+&=5^2+3^2+2^2\\
+&=38
+\end{align}
+$$
+
+* When combined with a $SSE$ loss function, it is called *Ridge Regression*
+
+## The L1 Regularizer
+
+* The *L1 regularizer* is given by the L1 norm:
+
+$$
+\begin{align}
+R_1(\beta)&=||\beta||_1\\
+&=\sum_{i=1}^m{|\beta_i|}\\
+&=5+3+2\\
+&=10
+\end{align}
+$$
+
+* Algorithms based on the L1 Regularizer are known as *LASSO* (for *Least Absolute Shrinkage and Selection Operator*)
+
+## Pros and Cons
+
+* The regularizers are designed to handle different types of complexity
+
+|Aspect| L1 Regularization | L2 Regularization |
+|---|---|---|
+|Complexity|Driven by number of parameters| Driven by size of parameters|
+|Goal| Drive unnecessary parameters to zero | Avoid placing too much weight on any one parameter|
+|Uniqueness|Admits multiple solutions | Converges to unique solution |
+|Result|Solutions with few non-zero parameters | Solutions with small parameters|
+
+
+* Recommendation: prefer L1 to L2 regularization unless you can argue why L2 is more appropriate
+* For example, if large parameters make model too sensitive to small changes in some variates
+
+
+## Overview
+
+1. *Motivating Examples: Model Selection Problems*
+2. How many nodes to put in our neural network hidden layers
+3. How many features to extract from the input data (polynomial terms in this case)
+4. Which explanatory variables to use in multiple linear regression
+5. *Statistical Techniques*
+6. Statistical Tests: p-values and F-statistic
+7. Maximize Adjusted R-Squared
+8. Minimize the AIC
+9. *Machine Learning Techniques*
+10. Add the L1 Regularizer  (LASSO Regression)
+11. Add the L2 Regularizer (Ridge Regression)
+12. **Add a mix of L1 and L2 Regularizers (Elastic Net Regularization)**
+13. *Regularization in Keras*
+14. Summary
+
+
+## Compromise: Elastic Net Regularization
+
+* Neither regularizer handles both types of complexity
+* So, of course, we can blend them
+* *Elastic Net Regularization* refers to programs like the following
+
+$$
+\text{min}_{\beta}\text{ }\left\{loss(y,x,\beta)+\lambda_1 R_1(\beta)+\lambda_2 R_2(\beta)\right\}
+$$
+
+* You can steer your model selection through choices of $\lambda_1$ and $\lambda_2$
+* Accept the default values in packages to begin with
+* Also known as *L1-L2 regularization*
+
+
+## Overview
+
+1. *Motivating Examples: Model Selection Problems*
+2. How many nodes to put in our neural network hidden layers
+3. How many features to extract from the input data (polynomial terms in this case)
+4. Which explanatory variables to use in multiple linear regression
+5. *Statistical Techniques*
+6. Statistical Tests: p-values and F-statistic
+7. Maximize Adjusted R-Squared
+8. Minimize the AIC
+9. *Machine Learning Techniques*
+10. Add the L1 Regularizer  (LASSO Regression)
+11. Add the L2 Regularizer (Ridge Regression)
+12. Add a mix of L1 and L2 Regularizers (Elastic Net Regularization)
+13. **Regularization in Keras**
+14. Summary
+
+
+
+## Regularization in Keras
+
+```{r, echo=FALSE, out.height="50%",out.width="50%",fig.align="center", fig.cap="Linear Regression Neural Network"}
+knitr::include_graphics("basiclinearneuralnet.png")
+```
+
+* Regularization can be applied to individual layers:
+1. Bias terms, called "bias-regularizer"
+2. Layer output ($\phi$), called "activity-regularizer"
+3. Feature generators (not covered), called "kernel-regularizer"
+
+## Example: Iris Classifier
+
+* Add hidden layer with lots of nodes but use bias and activity regularizers
+
+
+```{r, echo=FALSE, out.height="75%",out.width="75%",fig.align="center", fig.cap="Classifier Network with Hidden Layer"}
+knitr::include_graphics("ClassifierAll.png")
+```
+
+## Rebuild Data Set
+
+```{r, warning=FALSE,results='hide',error=FALSE,message=FALSE}
+newiris <- iris
+# (Species is already a factor variable so this next step is unnecessary)
+newiris$Species <- factor(newiris$Species)
+# Convert the factor variable to integer
+newiris$Species <- as.integer(unclass(newiris$Species))
+# Convert the data frame to a matrix
+irismatrix <- as.matrix(newiris)
+# Remove the dimension names
+dimnames(irismatrix) <- NULL
+features <- scale(irismatrix[,1:4])
+# Append the labels column
+irismatrix <- cbind(features,irismatrix[,5])
+rowcount <- nrow(irismatrix)
+set.seed(392) # So sample() always returns the same result (choose your own seed)
+trainrows = sort(sample(rowcount, rowcount*.8))
+trainset <- irismatrix[trainrows,]
+testset <- irismatrix[-trainrows,]
+numfeatures <- 4
+x_trainset <- trainset[,1:numfeatures]
+x_testset <- testset[,1:numfeatures]
+y_trainset <- trainset[,(numfeatures+1)]
+y_testset <-  testset[,(numfeatures+1)]
+# the to_categorical() function expects 0-based input, so we subtract 1
+trainLabels <- to_categorical(y_trainset-1)
+testLabels <- to_categorical(y_testset-1)
+
+```
+
+## A Hidden Layer, RELU Activation, L1 Regularization 
+
+```{r, warning=FALSE,results='hide',error=FALSE,message=FALSE}
+model5 = keras_model_sequential()
+model5 %>% 
+  layer_dense(units = 48, activation = 'relu', input_shape = 4,
+              bias_regularizer = regularizer_l1(l = 0.01),
+              activity_regularizer = regularizer_l1(l = 0.01)) %>% 
+  layer_dense(units = 3, activation = 'softmax')
+model5 %>% compile(
+  loss      = 'categorical_crossentropy',
+  optimizer = optimizer_rmsprop(),
+  metrics   = c('accuracy')
+)
+```
+
+## An Automatic View 
+
+```{r, warning=FALSE,error=FALSE,message=FALSE}
+model5 %>% plot_model()
+```
+
+## Train the Neural Network
+
+```{r, warning=FALSE,error=FALSE,message=FALSE}
+history = model5 %>% fit( x = x_trainset, y = trainLabels,
+  epochs           = 200,  batch_size =20,
+  validation_split = .2)
+plot(history)
+```
+
+## View the Results on the Training Set
+
+* This appears to have solved the overfitting problem even with 48 nodes in the hidden layer
+* Final steps:
+1. Feed the training set to ```predict()``` function to get probabilities
+2. Use the ```argmax()``` to get predictions
+3. Then plot the result somehow
+
+## Visualization Code
+
+```{r}
+sepalgroup <- newiris %>% select(Sepal.Length,Sepal.Width,Species) %>%
+                          rename(Length=Sepal.Length,Width=Sepal.Width) %>% 
+                          mutate(Part="Sepal")
+petalgroup <- newiris %>% select(Petal.Length,Petal.Width,Species) %>%
+                          rename(Length=Petal.Length,Width=Petal.Width) %>% 
+                          mutate(Part="Petal")
+irisgroups <- rbind(sepalgroup,petalgroup)
+trainingprobabilities <- model5 %>% predict(x_trainset)
+trainingprediction <- argmax(trainingprobabilities)
+# subset each of plot groups
+trainSepalgroup <- sepalgroup[trainrows,]
+trainPetalgroup <- petalgroup[trainrows,]
+# add the predicted class
+trainSepalgroup$prediction <- trainingprediction
+trainPetalgroup$prediction <- trainingprediction
+# merge the two plot groups
+trainIrisgroups <- rbind(trainSepalgroup,trainPetalgroup)
+# add a column for bad prediction
+trainIrisgroups <- trainIrisgroups %>% mutate(Mismatch=unclass(Species)!=prediction)
+# plot as before but add triangles with black highlight for mismatch
+irisplot <- ggplot(data=trainIrisgroups,
+            mapping=aes(x=Length,y=Width,color=Species,fill=Species,shape=Mismatch))+
+            geom_point(size=4)+geom_point(data=trainIrisgroups[trainIrisgroups$Mismatch,],
+              mapping=aes(x=Length,y=Width),color="black")+facet_wrap(~Part,ncol=2)
+```
+
+
+## Visualize the Results
+
+
+```{r}
+irisplot
+```
+
+
+## Overview
+
+1. *Motivating Examples: Model Selection Problems*
+2. How many nodes to put in our neural network hidden layers
+3. How many features to extract from the input data (polynomial terms in this case)
+4. Which explanatory variables to use in multiple linear regression
+5. *Statistical Techniques*
+6. Statistical Tests: p-values and F-statistic
+7. Maximize Adjusted R-Squared
+8. Minimize the AIC
+9. *Machine Learning Techniques*
+10. Add the L1 Regularizer  (LASSO Regression)
+11. Add the L2 Regularizer (Ridge Regression)
+12. Add a mix of L1 and L2 Regularizers (Elastic Net Regularization)
+13. *Regularization in Keras*
+14. **Summary**
+
+
+## Summary
+
+* Overfitting is when too many variates are included in the regression/classifier
+* Models should be parsimonious: use few parameters
+* p-values and F-statistics can be used to judge whether additional variates are useful in regression models
+* The F-statistic is closely related to the coefficient of determination (R-squared)
+* The Adjusted R-Squared includes a penalty for excess numbers of variates
+* The Akaike Information Criterion (AIC) balances log likelihood with number of parameters
+* AIC is superior to Adjusted R-Squared for model selection
+* Machine learning automates parameter selection by using regularizers
+* The L1-regularizer (LASSO) is preferred: it drives unnecessary parameters to zero
+* The L2-regularizer (Ridge) is useful if some variates get too much weight
+* The L1-L2-regularizer can be used to blend these concerns
+* Keras makes it easy to add regularizers to any layer of neural network
+
+
+## Sources
+
+Wikipedia has a good explanation of the F-statistic: https://en.wikipedia.org/wiki/F-test
+
+The image source for the Ames Housing variables: https://nycdsa-blog-files.s3.us-east-2.amazonaws.com/2019/09/ML_project_variables-1-1024x576.png
+
+I found many websites explaining the differences between L1 and L2 Regularizers. Here is an example: https://www.analyticssteps.com/blogs/l2-and-l1-regularization-machine-learning
+
+

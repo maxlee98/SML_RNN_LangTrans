@@ -1,0 +1,8 @@
+"0","```r
+# extract the accuracy of Model 1
+last_epoch <- max(history$params$epochs)
+accuracy <- history$metrics$val_accuracy[last_epoch]
+print(str_c(\"Model 1 accuracy:\",accuracy))
+```"
+"1","[1] \"Model 1 accuracy:0.987500011920929\"
+"
