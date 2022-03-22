@@ -6,6 +6,7 @@ Created on Thu Mar 10 16:57:52 2022
 """
 import math
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 sin_wave = np.array([math.sin(x) for x in np.arange(200)])
@@ -39,7 +40,7 @@ Y_val = np.array(Y_val)
 Y_val = np.expand_dims(Y_val, axis=1)
 
 learning_rate = 0.0001    
-nepoch = 25               
+nepoch = 25          
 T = 50                   # length of sequence
 hidden_dim = 100         
 output_dim = 1
@@ -51,6 +52,11 @@ max_clip_value = 10
 U = np.random.uniform(0, 1, (hidden_dim, T))
 W = np.random.uniform(0, 1, (hidden_dim, hidden_dim))
 V = np.random.uniform(0, 1, (output_dim, hidden_dim))
+
+U = pd.read_csv("U.csv")
+V = pd.read_csv("V.csv")
+W = pd.read_csv("W.csv")
+
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -76,7 +82,6 @@ for epoch in range(nepoch):
     # calculate error 
         loss_per_record = (y - mulv)**2 / 2
         loss += loss_per_record
-    print(y.shape[0])
     loss = loss / float(y.shape[0])
     
     # check loss on val

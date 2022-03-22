@@ -51,8 +51,8 @@ for (i in (num_records-49):(num_records)){
 We set up the necessary hyperparameters for our RNN model.
 
 ```{r}
-learning_rate = 0.001
-epochs = 25
+learning_rate = 0.0001
+epochs = 10
 hidden_dim = 100
 output_dim = 1
 
@@ -64,10 +64,13 @@ max_clip_value = 10
 We now initialize the weights for our network. We will also set.seed to allow for reproducible results.
 
 ```{r}
-set.seed(123)
-U = matrix(runif(hidden_dim * sequence_length), nrow = hidden_dim, ncol = sequence_length)
-W = matrix(runif(hidden_dim * hidden_dim), nrow = hidden_dim, ncol = hidden_dim)
-V = matrix(runif(output_dim * hidden_dim), nrow = output_dim, ncol = hidden_dim)
+U <- read.csv("U.csv", header=F)
+W <- read.csv("W.csv", header=F)
+V <- read.csv("V.csv", header=F)
+
+U <- as.matrix(U)
+V <- as.matrix(V)
+W <- as.matrix(W)
 ```
 
 We will also need our dearest sigmoid function.
@@ -218,7 +221,7 @@ for (epoch in 1:epochs){
 
 ```
 
-Getting predictions
+Getting predictions on the training set first. We will compute the mse for our predictions as well.
 
 ```{r}
 preds <- NULL
@@ -236,9 +239,53 @@ for (i in 1:dim(Y)[1]){
   preds <- rbind(preds, mulv)
   }
 }
-plot(0:99, sine[1:100],xlab="x",ylab="y = sin(x)")
-lines(0:99, sine[1:100])
-plot(0:99, preds, xlab="x",ylab="y = sin(x)")
-lines(0:99, preds)
+
+actual_df <- data.frame(x = 0:99, y = sine[1:100])
+predicted_df <- data.frame(x = 0:99, y = preds)
+
+train_mse <- sum((actual_df[y] - predicted_df[y])^2)/dim(actual_df[y])[1]
+train_mse 
+
+ggplot(NULL, aes(x, y)) + 
+  geom_line(data = actual_df, color = "green") +
+  geom_line(data = predicted_df, color = "red") +
+  ggtitle(paste0("Train MSE = ", train_mse))
+
+```
+Let's create the test case for sines of x = 200 to 249, up to sines of 250 to 299. 
+
+```{r}
+test_X <- NULL
+test_Y <- NULL
+for (i in 200:299){
+  test_X <- rbind(test_X, sin(i:(i+49)))
+  test_Y <- rbind(test_Y, sin(i+50))
+}
+actual_test_df <- data.frame(x = 200:299, y = test_Y)
+
+test_preds <- NULL
+for (i in 1:dim(test_Y)[1]){
+  x <- test_X[i,]
+  y <- test_Y[i]
+  prev_s <- rep(0, hidden_dim)
+  for (t in 1:T){
+    mulu <- U %*% x
+    mulw <- W %*% prev_s
+    add <- mulw + mulu
+    s <- sigmoid(add)
+    mulv <- V %*% s
+    prev_s <- s
+  test_preds <- rbind(test_preds, mulv)
+  }
+}
+test_preds_df <- data.frame(x = 200:299, y = test_preds)
+
+test_mse <- sum((actual_test_df[y] - test_preds_df[y])^2)/dim(actual_test_df[y])[1]
+test_mse 
+
+ggplot(NULL, aes(x, y)) + 
+  geom_line(data = actual_test_df, color = "green") +
+  geom_line(data = test_preds_df, color = "red") +
+  ggtitle(paste0("Test MSE = ", test_mse))
 ```
 
