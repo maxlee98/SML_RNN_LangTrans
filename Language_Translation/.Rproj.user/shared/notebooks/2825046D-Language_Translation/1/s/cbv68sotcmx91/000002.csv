@@ -1,4 +1,0 @@
-"0","language <- ""Indonesian"""
-"0","language_code <- ""ind"""
-"0","file_name <- paste0(""translation_"", language_code, "".csv"")"
-"0","train <- read.csv(file_name, encoding=""UTF-8"", stringsAsFactors=FALSE)"

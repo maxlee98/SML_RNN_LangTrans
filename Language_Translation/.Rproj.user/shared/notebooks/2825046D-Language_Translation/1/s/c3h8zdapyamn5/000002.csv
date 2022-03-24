@@ -1,7 +1,0 @@
-"0","# words <- text_tokenizer()"
-"0","tokenize <- function(x){"
-"0","  tokenizer <- text_tokenizer(num_words = 1000)"
-"0","  fit_text_tokenizer(tokenizer, x)"
-"0","  sequences <- texts_to_sequences(tokenizer, x)"
-"0","  return(c(sequences, tokenizer))"
-"0","}"

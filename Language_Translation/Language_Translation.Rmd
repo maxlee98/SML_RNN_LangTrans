@@ -20,9 +20,11 @@ https://stackoverflow.com/questions/10961141/setting-up-a-3d-matrix-in-r-and-acc
 Dataset:
 http://www.manythings.org/anki/
 
+
+*Attempt to train words using 8-10 Words* accuracy could be due to PADDING
+
 # Importing of Libraries
 ```{r warning=FALSE,results='hide',error=FALSE,message=FALSE}
-Sys.setlocale(category = "LC_CTYPE", "Chinese (Simplified)_China.936")
 library(keras)
 library(tensorflow)
 library(tokenizers)
@@ -31,14 +33,21 @@ library(png)
 library(reticulate)
 library(abind)
 library(ramify)
+library(stringr)
 ```
 
-
 ```{r}
-language <- "Indonesian"
-language_code <- "ind"
+language <- "French"
+language_code <- "fr"
 file_name <- paste0("translation_", language_code, ".csv")
 train <- read.csv(file_name, encoding="UTF-8", stringsAsFactors=FALSE)
+```
+
+```{r}
+# language <- "Indonesian"
+# language_code <- "ind"
+# file_name <- paste0("translation_", language_code, ".csv")
+# train <- read.csv(file_name, encoding="UTF-8", stringsAsFactors=FALSE)
 ```
 ## Amending column names
 ```{r}
@@ -50,17 +59,65 @@ train
 ```
 # Tokenizer
 ```{r}
-# words <- text_tokenizer()
 tokenize <- function(x){
-  tokenizer <- text_tokenizer(num_words = 1000)
+  tokenizer <- text_tokenizer(num_words = 1000000)
   fit_text_tokenizer(tokenizer, x)
   sequences <- texts_to_sequences(tokenizer, x)
   return(c(sequences, tokenizer))
 }
 ```
 
+# Padding
+```{r}
+pad <- function(x, length=NULL){
+  return(pad_sequences(x, maxlen = length, padding = 'post'))
+}
+```
 
-## Example
+# Subsetting to 8-10 words within the English sentence
+
+## Finding number of words within an  sentence
+```{r}
+# sentences_length_vec <- function(word_list){
+#   output <- tokenize(word_list)
+#   sentence_length <- c()
+#   for(i in 1:length(word_list)){
+#     sentence_length[i] <- length(output[[i]])
+#   }
+#   
+#   sentence_length
+# }
+# 
+# english_sentence_length <- sentences_length_vec(list(train[, 1])[[1]])
+# other_sentence_length <- sentences_length_vec(list(train[, 2])[[1]])
+# 
+# 
+# ## Adding each sentence length to the dataframe `train`
+# train$english_length <- english_sentence_length 
+# train$other_length <- other_sentence_length
+# 
+# tail(train)
+
+```
+
+## Conducting the subset of the dataframe
+```{r}
+# lower_bound_words <- 8; upper_bound_words <- 10 
+# subset_train <- subset(train, 
+#                        train$english_length >= lower_bound_words & train$english_length <= upper_bound_words 
+#                        & train$other_length >= lower_bound_words & train$other_length <= upper_bound_words
+#                          )
+# 
+# ## Checking for the number of rows within the new subsetted dataframe for testing purposes.
+# head(subset_train)
+# tail(subset_train)
+# nrow(subset_train)
+```
+
+
+
+
+# Example for Tokenisation & Padding
 ```{r}
 text_sentences = c('The quick brown fox jumps over the lazy dog .',
     'By Jove , my quick study of lexicography won a prize .',
@@ -85,62 +142,57 @@ for(i in 1:length(text_sentences)){
 }
 ```
 
-
-
-# Padding
-```{r}
-pad <- function(x, length=NULL){
-  return(pad_sequences(x, maxlen = length, padding = 'post'))
-}
-```
-
 ## Padding each tokenized sentences
 ```{r}
-padded_text <- pad(text_tokenized)
-for(i in 1:length(text_sentences)){
-  print(paste0("Sequence in Text ", i, ":"))
-  print(paste0("Input: ", text_sentences[i]))
-  print(paste0("Output: ", list(text_tokenized[[i]])))
-  print(paste0("Output (Padded): ", list(padded_text[i,])))
-}
+# padded_text <- pad(text_tokenized)
+# for(i in 1:length(text_sentences)){
+#   print(paste0("Sequence in Text ", i, ":"))
+#   print(paste0("Input: ", text_sentences[i]))
+#   print(paste0("Output: ", list(text_tokenized[[i]])))
+#   print(paste0("Output (Padded): ", list(padded_text[i,])))
+# }
 ```
 
 
 
 # Preprocessing Component (Tidying up of characters and sentences)
 
-## Getting Compiled English Text
+## Getting Compiled English Text (Testing)
 ```{r}
-n <- 1000
-head(train)
+# n <- nrow(subset_train)
+n <- 5
 word_list <- list(train[, 1])[[1]][1:n]
+# word_list
 new_output <- tokenize(word_list)
 new_text_tokenized <- new_output[1:n]
 new_padded_text <- pad(new_text_tokenized)
 
-# for(i in 1:n){
-#   print(paste0("Sequence in Text ", i, ":"))
-#   print(paste0("Input: ", word_list[i]))
-#   print(paste0("Output: ", list(new_text_tokenized[[i]])))
-#   print(paste0("Output (Padded): ", list(new_padded_text[i,])))
-# }
+for(i in 1:n){
+  # if(i %% 100 != 0) next
+  print(paste0("Sequence in Text ", i, ":"))
+  print(paste0("Input: ", word_list[i]))
+  print(paste0("Output: ", list(new_text_tokenized[[i]])))
+  print(paste0("Output (Padded): ", list(new_padded_text[i,])))
+}
 
 ```
 
-## Getting Compiled Other Language Text
+## Getting Compiled Other Language Text (Testing)
 ```{r}
-n <- 1000
+# n <- nrow(subset_train)
+n <- 5
 word_list <- list(train[, 2])[[1]][1:n]
 new_output <- tokenize(word_list)
 new_text_tokenized <- new_output[1:n]
 new_padded_text <- pad(new_text_tokenized)
 
-# for(i in 1:n){
-#   print(paste0("Sequence in Text ", i, ":"))
-#   print(paste0("Input: ", word_list[i]))
-#   print(paste0("Output: ", list(new_text_tokenized[[i]])))
-#   print(paste0("Output (Padded): ", list(new_padded_text[i,])))
-# }
+for(i in 1:n){
+  # if(i %% 100 != 0) next
+  print(paste0("Sequence in Text ", i, ":"))
+  print(paste0("Input: ", word_list[i]))
+  print(paste0("Output: ", list(new_text_tokenized[[i]])))
+  print(paste0("Output (Padded): ", list(new_padded_text[i,])))
+}
 
 ```
 
@@ -169,14 +221,11 @@ preprocess_text <- function(x, y){
 }
 ```
 
-
-
-
+## Full Data
 ```{r}
-n <- nrow(train) #1000
-train_x <- list(train[, 1])[[1]][1:n]
-train_y <- list(train[, 2])[[1]][1:n]
-# print(train_x)
+train_x <- list(train[, 1])[[1]]
+train_y <- list(train[, 2])[[1]]
+# print(subset_train_x)
 
 process_output <- preprocess_text(train_x, train_y)
 # print(process_output[4],)
@@ -188,6 +237,26 @@ preprocess_x <- process_output[1]; preprocess_y <- process_output[2]; x_tk <- pr
 # Conversion back to list of words from tokenized word list
 # attributes(x_tk[[1]])$names
 # length(y_tk[[1]])
+```
+
+
+## Subset data
+```{r}
+# n <- nrow(train) #1000
+# subset_train_x <- list(subset_train[, 1])[[1]][1:n]
+# subset_train_y <- list(subset_train[, 2])[[1]][1:n]
+# # print(subset_train_x)
+# 
+# process_output <- preprocess_text(subset_train_x, subset_train_y)
+# # print(process_output[4],)
+# preprocess_x <- process_output[1]; preprocess_y <- process_output[2]; x_tk <- process_output[3]; y_tk <- process_output[4]
+# # print(preprocess_x[[1]])
+# # print(preprocess_y[[1]])
+# 
+# 
+# # Conversion back to list of words from tokenized word list
+# # attributes(x_tk[[1]])$names
+# # length(y_tk[[1]])
 ```
 
 # Obtaining the maximum column number and re-padding
@@ -203,7 +272,34 @@ if(col_x >= col_y){
 
 tmp_x <- pad(preprocess_x[[1]], max_col)
 tmp_y <- pad(preprocess_y[[1]], max_col)
+
+
 ```
+
+# Checking Correspondance between subset_train and tmp
+```{r}
+row <- 5
+head(tmp_x)
+train_x[row]
+```
+## Calculating Sparsity
+```{r}
+calculate_sparsity <- function(df_matrix){
+  zero_count <- 0
+  total_count <- nrow(df_matrix) * ncol(tmp_x)
+  for(i in 1:nrow(df_matrix)){
+    for(j in 1:ncol(df_matrix)){
+      if(df_matrix[i, j] == 0){
+        zero_count = zero_count + 1
+      }
+    }
+  }
+  zero_count/total_count
+}
+
+print(paste("The Sparsity of the matrix is: ", round(calculate_sparsity(tmp_x)*100, 2), "%"))
+```
+
 
 
 # Conversion of 2D matrix to tensor
@@ -216,51 +312,13 @@ convert2tensor <- function(preprocess_data){
 # array(preprocess_x[[1]], c(dim(preprocess_x[[1]])[1], dim(preprocess_x[[1]])[2], 1))
 # dim(array(preprocess_x[[1]], c(dim(preprocess_x[[1]])[1], dim(preprocess_x[[1]])[2], 1)))[2:3]
 ```
-## Conversion to Tensor (Test)
-```{r}
-convertTensor <- function(preprocess_data){
-  holder <- NULL
-  for(i in 1:nrow(preprocess_data)){
-    logit_lst <- preprocess_data[i, ]
-    logit_lst <- matrix(logit_lst, ncol=1)
-    logit_lst <- array(logit_lst, c(dim(logit_lst)[1], dim(logit_lst)[2], 1))
-    if (is.null(holder)){
-      holder <- logit_lst
-    }else{
-      holder <- abind(holder, logit_lst)
-    }
-  }
-  holder
-}
-# tmp_x
-# convertTensor(tmp_x)
-
-```
-
-
-```{r}
-# test_tail <- tail(tmp_x)
-# test_tail
-# holder <- NULL
-# for(i in 1:nrow(test_tail)){
-#   print(test_tail[i, ])
-#   logit_lst <- test_tail[i, ]
-#   logit_lst <- matrix(logit_lst, ncol=1)
-#   logit_lst <- array(logit_lst, c(dim(logit_lst)[1], dim(logit_lst)[2], 1))
-#   if (is.null(holder)){
-#     holder <- logit_lst
-#   }else{
-#     holder <- abind(holder, logit_lst)
-#   }
-# }
-# holder
-```
 
 
 # Converting to tensor
 ```{r}
 tensor_x <- convert2tensor(tmp_x)
-# tensor_x
+dim(tensor_x)
+tensor_x[1, , ]
 tensor_y <- convert2tensor(tmp_y)
 # tensor_y
 ```
@@ -273,6 +331,7 @@ tensor_y <- convert2tensor(tmp_y)
 logits_to_text <- function(logits, tokenizer){
   tokenizer_words <- attributes(tokenizer[[1]])$names
   text <- c()
+  logits <- logits - 1
   for(i in logits){
     if(i == 0){
       text <- c(text, "<PAD>")
@@ -285,7 +344,8 @@ logits_to_text <- function(logits, tokenizer){
 
 # Testing to convert the first row back to text
 # preprocess_x[[1]]
-logits_to_text(preprocess_x[[1]][1, ], x_tk)
+# logits_to_text(preprocess_x[[1]][1, ], x_tk)
+
 ```
 
 
@@ -312,8 +372,8 @@ model_RNN %>% compile(
 
 history = model_RNN %>% fit(
   x = tensor_x, y = tensor_y,
-  epochs           = 3,
-  batch_size = 512,
+  epochs           = 10,
+  batch_size = 20,
   validation_split = 0.2,
 )
 plot(history)
@@ -322,46 +382,51 @@ plot(history)
 
 # Prediction
 
+
+## Obtaining the output for prediction (Testing)
 ```{r}
-tail(attributes(y_tk[[1]])$names)
-y_tk[[1]]$'<PAD>' <- 0
-tail(y_tk[[1]])
-# y_tk[[1]]$"<PAD>"
-x_tk[[1]]
-```
+predict_output <- model_RNN %>% predict(matrix(tensor_x[5, ,], nrow=1))
+# predict_output
 
 
-## Obtaining the output for prediction
-```{r}
-# str(model_RNN)
-single <- tail(tensor_x)[1, ,1]
-single <- matrix(single, ncol=1)
-single <- array(single, c(dim(single)[1], dim(single)[2], 1))
-single
-matrix(tensor_x[50, ,], nrow=1)
-# model_RNN$input
-predict_output <- model_RNN %>% predict(matrix(tensor_x[1, ,], nrow=1))
-predict_output
-# length(y_tk[[1]])
+predict_output <- argmax(predict_output, FALSE)
+# train_x[5]
+train_y[5]
 logits_to_text(predict_output, y_tk)
-dim(predict_output)
-print(argmax(predict_output, FALSE))
-predict_output
 
 ```
-## Need to add the padding into the word_list for y_tk and x_tk
-
-
-## Getting the maximum probability for each word
+## Predictions for Training set
 ```{r}
+
+pred_translation <- function(i){
+  predict_output <- model_RNN %>% predict(matrix(tensor_x[i, ,], nrow=1))
+  predict_output <- argmax(predict_output, FALSE)
+  converted_text <- logits_to_text(predict_output, y_tk)
+  converted_text[converted_text == "<PAD>"] <- ""
+  converted_text <- trimws(paste(converted_text, collapse = " "))
+  print(paste("Input sentence:", train_x[i]))
+  print(paste("Intended Output Sentence:", train_y[i]))
+  print(paste("Predicted Output Sentence:", converted_text))
+}
+
+## `i` represents the index within the training set.
+pred_translation(5)
 
 ```
 
-
-## Reconstructing the text
+## Custom Prediction
 
 ```{r}
-
+custom_sentence <- "my favourite country is paris"
+custom_split <- str_split(custom_sentence, " ")[[1]]
+for(word in custom_split){
+  if(word %in% names(x_tk[[1]])){
+    print(paste("Word:", word ,"is found in the tokenizer"))
+  }else{
+    print(paste("Word:", word ,"is NOT found in the tokenizer"))
+  }
+}
+# names(x_tk[[1]])
 ```
 
 
