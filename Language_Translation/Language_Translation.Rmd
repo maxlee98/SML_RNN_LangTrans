@@ -312,7 +312,11 @@ model_RNN %>% compile(
 history = model_RNN %>% fit(
   x = tensor_x, y = tensor_y,
   epochs           = 10,
+<<<<<<< Updated upstream
   batch_size = 1024,
+=======
+  batch_size = 512,
+>>>>>>> Stashed changes
   validation_split = 0.2,
 )
 plot(history)
@@ -330,9 +334,16 @@ single <- array(single, c(dim(single)[1], dim(single)[2], 1))
 single
 matrix(tensor_x[1, ,], nrow=1)
 # model_RNN$input
-predict_output <- model_RNN %>% predict(matrix(tensor_x[1, ,], nrow=1))
+predict_output <- model_RNN %>% predict(matrix(tensor_x[5, ,], ncol=1))
 predict_output
 # length(y_tk[[1]])
+<<<<<<< Updated upstream
+=======
+logits_to_text(argmax(predict_output), y_tk)
+dim(predict_output)
+print(argmax(predict_output, FALSE))
+predict_output
+>>>>>>> Stashed changes
 
 ```
 ## Need to add the padding into the word_list for y_tk and x_tk
