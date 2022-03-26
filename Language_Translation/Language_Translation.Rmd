@@ -11,6 +11,9 @@ Guide:
 https://github.com/tommytracey/AIND-Capstone
 https://tommytracey.github.io/AIND-Capstone/machine_translation.html
 
+Why TimeDistributedDenseLayer:
+https://datascience.stackexchange.com/questions/10836/the-difference-between-dense-and-timedistributeddense-of-keras
+
 Keras Documentation:
 https://tensorflow.rstudio.com/reference/keras/
 
@@ -34,6 +37,7 @@ library(reticulate)
 library(abind)
 library(ramify)
 library(stringr)
+library(deepviz)
 ```
 
 ```{r}
@@ -139,6 +143,7 @@ for(i in 1:length(text_sentences)){
   print(paste0("Sequence in Text ", i, ":"))
   print(paste0("Input: ", text_sentences[i]))
   print(paste0("Output: ", list(text_tokenized[[i]])))
+  cat("\n")
 }
 ```
 
@@ -173,6 +178,7 @@ for(i in 1:n){
   print(paste0("Input: ", word_list[i]))
   print(paste0("Output: ", list(new_text_tokenized[[i]])))
   print(paste0("Output (Padded): ", list(new_padded_text[i,])))
+  cat("\n")
 }
 
 ```
@@ -328,10 +334,12 @@ tensor_y <- convert2tensor(tmp_y)
 # Converting the logits back to text
 ```{r}
 
-logits_to_text <- function(logits, tokenizer){
+logits_to_text <- function(logits, tokenizer, predict=FALSE){
   tokenizer_words <- attributes(tokenizer[[1]])$names
   text <- c()
-  logits <- logits - 1
+  if(predict == TRUE){
+    logits <- logits - 1 ## For prediction conversion only 
+  }
   for(i in logits){
     if(i == 0){
       text <- c(text, "<PAD>")
@@ -343,8 +351,9 @@ logits_to_text <- function(logits, tokenizer){
 }
 
 # Testing to convert the first row back to text
+# preprocess_x[[1]][1, ]
 # preprocess_x[[1]]
-# logits_to_text(preprocess_x[[1]][1, ], x_tk)
+logits_to_text(preprocess_x[[1]][1, ], x_tk)
 
 ```
 
@@ -354,7 +363,7 @@ logits_to_text <- function(logits, tokenizer){
 # dim(tensor_y)
 model_RNN <-  keras_model_sequential()
 model_RNN %>% 
-  layer_gru(units = 256, input_shape = dim(tensor_x)[2:3], return_sequences = TRUE) %>%
+  layer_simple_rnn(units = 256, input_shape = dim(tensor_x)[2:3], return_sequences = TRUE) %>%
   time_distributed(layer_dense(units = 1024, activation = 'relu'))%>%
   layer_dropout(rate = 0.5) %>%
   time_distributed(layer_dense(units = length(y_tk[[1]]) + 1, activation = 'softmax'))
@@ -367,13 +376,15 @@ model_RNN %>% compile(
   optimizer = optimizer_adam(learning_rate = 0.005),
   metrics=c('accuracy')
 )
+
+plot_model(model_RNN)
 ```
 ```{r}
 
 history = model_RNN %>% fit(
   x = tensor_x, y = tensor_y,
   epochs           = 10,
-  batch_size = 20,
+  batch_size = 1024,
   validation_split = 0.2,
 )
 plot(history)
@@ -392,7 +403,7 @@ predict_output <- model_RNN %>% predict(matrix(tensor_x[5, ,], nrow=1))
 predict_output <- argmax(predict_output, FALSE)
 # train_x[5]
 train_y[5]
-logits_to_text(predict_output, y_tk)
+logits_to_text(predict_output, y_tk, predict = TRUE)
 
 ```
 ## Predictions for Training set
@@ -401,7 +412,7 @@ logits_to_text(predict_output, y_tk)
 pred_translation <- function(i){
   predict_output <- model_RNN %>% predict(matrix(tensor_x[i, ,], nrow=1))
   predict_output <- argmax(predict_output, FALSE)
-  converted_text <- logits_to_text(predict_output, y_tk)
+  converted_text <- logits_to_text(predict_output, y_tk, predict = TRUE)
   converted_text[converted_text == "<PAD>"] <- ""
   converted_text <- trimws(paste(converted_text, collapse = " "))
   print(paste("Input sentence:", train_x[i]))
@@ -413,50 +424,4 @@ pred_translation <- function(i){
 pred_translation(5)
 
 ```
-
-## Custom Prediction
-
-```{r}
-custom_sentence <- "my favourite country is paris"
-custom_split <- str_split(custom_sentence, " ")[[1]]
-for(word in custom_split){
-  if(word %in% names(x_tk[[1]])){
-    print(paste("Word:", word ,"is found in the tokenizer"))
-  }else{
-    print(paste("Word:", word ,"is NOT found in the tokenizer"))
-  }
-}
-# names(x_tk[[1]])
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
