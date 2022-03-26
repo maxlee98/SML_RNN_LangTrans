@@ -20,9 +20,6 @@ https://tensorflow.rstudio.com/reference/keras/
 Stackoverflow:
 https://stackoverflow.com/questions/10961141/setting-up-a-3d-matrix-in-r-and-accessing-certain-elements
 
-Dataset:
-http://www.manythings.org/anki/
-
 
 *Attempt to train words using 8-10 Words* accuracy could be due to PADDING
 
@@ -47,12 +44,6 @@ file_name <- paste0("translation_", language_code, ".csv")
 train <- read.csv(file_name, encoding="UTF-8", stringsAsFactors=FALSE)
 ```
 
-```{r}
-# language <- "Indonesian"
-# language_code <- "ind"
-# file_name <- paste0("translation_", language_code, ".csv")
-# train <- read.csv(file_name, encoding="UTF-8", stringsAsFactors=FALSE)
-```
 ## Amending column names
 ```{r}
 colnames(train) <- c("English", language)
@@ -77,49 +68,6 @@ pad <- function(x, length=NULL){
   return(pad_sequences(x, maxlen = length, padding = 'post'))
 }
 ```
-
-# Subsetting to 8-10 words within the English sentence
-
-## Finding number of words within an  sentence
-```{r}
-# sentences_length_vec <- function(word_list){
-#   output <- tokenize(word_list)
-#   sentence_length <- c()
-#   for(i in 1:length(word_list)){
-#     sentence_length[i] <- length(output[[i]])
-#   }
-#   
-#   sentence_length
-# }
-# 
-# english_sentence_length <- sentences_length_vec(list(train[, 1])[[1]])
-# other_sentence_length <- sentences_length_vec(list(train[, 2])[[1]])
-# 
-# 
-# ## Adding each sentence length to the dataframe `train`
-# train$english_length <- english_sentence_length 
-# train$other_length <- other_sentence_length
-# 
-# tail(train)
-
-```
-
-## Conducting the subset of the dataframe
-```{r}
-# lower_bound_words <- 8; upper_bound_words <- 10 
-# subset_train <- subset(train, 
-#                        train$english_length >= lower_bound_words & train$english_length <= upper_bound_words 
-#                        & train$other_length >= lower_bound_words & train$other_length <= upper_bound_words
-#                          )
-# 
-# ## Checking for the number of rows within the new subsetted dataframe for testing purposes.
-# head(subset_train)
-# tail(subset_train)
-# nrow(subset_train)
-```
-
-
-
 
 # Example for Tokenisation & Padding
 ```{r}
@@ -149,13 +97,13 @@ for(i in 1:length(text_sentences)){
 
 ## Padding each tokenized sentences
 ```{r}
-# padded_text <- pad(text_tokenized)
-# for(i in 1:length(text_sentences)){
-#   print(paste0("Sequence in Text ", i, ":"))
-#   print(paste0("Input: ", text_sentences[i]))
-#   print(paste0("Output: ", list(text_tokenized[[i]])))
-#   print(paste0("Output (Padded): ", list(padded_text[i,])))
-# }
+padded_text <- pad(text_tokenized)
+for(i in 1:length(text_sentences)){
+  print(paste0("Sequence in Text ", i, ":"))
+  print(paste0("Input: ", text_sentences[i]))
+  print(paste0("Output: ", list(text_tokenized[[i]])))
+  print(paste0("Output (Padded): ", list(padded_text[i,])))
+}
 ```
 
 
@@ -178,7 +126,7 @@ for(i in 1:n){
   print(paste0("Input: ", word_list[i]))
   print(paste0("Output: ", list(new_text_tokenized[[i]])))
   print(paste0("Output (Padded): ", list(new_padded_text[i,])))
-  cat("\n")
+  # cat("\n")
 }
 
 ```
@@ -245,26 +193,6 @@ preprocess_x <- process_output[1]; preprocess_y <- process_output[2]; x_tk <- pr
 # length(y_tk[[1]])
 ```
 
-
-## Subset data
-```{r}
-# n <- nrow(train) #1000
-# subset_train_x <- list(subset_train[, 1])[[1]][1:n]
-# subset_train_y <- list(subset_train[, 2])[[1]][1:n]
-# # print(subset_train_x)
-# 
-# process_output <- preprocess_text(subset_train_x, subset_train_y)
-# # print(process_output[4],)
-# preprocess_x <- process_output[1]; preprocess_y <- process_output[2]; x_tk <- process_output[3]; y_tk <- process_output[4]
-# # print(preprocess_x[[1]])
-# # print(preprocess_y[[1]])
-# 
-# 
-# # Conversion back to list of words from tokenized word list
-# # attributes(x_tk[[1]])$names
-# # length(y_tk[[1]])
-```
-
 # Obtaining the maximum column number and re-padding
 ```{r}
 col_x <- dim(preprocess_x[[1]])[2]
@@ -282,13 +210,7 @@ tmp_y <- pad(preprocess_y[[1]], max_col)
 
 ```
 
-# Checking Correspondance between subset_train and tmp
-```{r}
-row <- 5
-head(tmp_x)
-train_x[row]
-```
-## Calculating Sparsity
+# Calculating Sparsity (Extra)
 ```{r}
 calculate_sparsity <- function(df_matrix){
   zero_count <- 0
@@ -305,7 +227,6 @@ calculate_sparsity <- function(df_matrix){
 
 print(paste("The Sparsity of the matrix is: ", round(calculate_sparsity(tmp_x)*100, 2), "%"))
 ```
-
 
 
 # Conversion of 2D matrix to tensor
@@ -328,7 +249,6 @@ tensor_x[1, , ]
 tensor_y <- convert2tensor(tmp_y)
 # tensor_y
 ```
-
 
 
 # Converting the logits back to text
@@ -392,7 +312,6 @@ plot(history)
 
 
 # Prediction
-
 
 ## Obtaining the output for prediction (Testing)
 ```{r}
