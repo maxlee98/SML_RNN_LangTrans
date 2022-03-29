@@ -11,9 +11,6 @@ Guide:
 https://github.com/tommytracey/AIND-Capstone
 https://tommytracey.github.io/AIND-Capstone/machine_translation.html
 
-Why TimeDistributedDenseLayer:
-https://datascience.stackexchange.com/questions/10836/the-difference-between-dense-and-timedistributeddense-of-keras
-
 Keras Documentation:
 https://tensorflow.rstudio.com/reference/keras/
 
@@ -21,17 +18,13 @@ Stackoverflow:
 https://stackoverflow.com/questions/10961141/setting-up-a-3d-matrix-in-r-and-accessing-certain-elements
 
 
-*Attempt to train words using 8-10 Words* accuracy could be due to PADDING
-
 # Importing of Libraries
 ```{r warning=FALSE,results='hide',error=FALSE,message=FALSE}
 library(keras)
 library(tensorflow)
 library(tokenizers)
 library(dplyr)
-library(png)
 library(reticulate)
-library(abind)
 library(ramify)
 library(stringr)
 library(deepviz)

@@ -1,0 +1,291 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+https://www.analyticsvidhya.com/blog/2019/01/fundamentals-deep-learning-recurrent-neural-networks-scratch-python/
+
+```{r}
+library(dplyr)
+library(tidyverse)
+library(profvis)
+```
+First, we start by generating value of sine for 1 up to and including 200. 
+
+```{r}
+sine <- as.matrix(sin(0:199))
+plot(0:49, sine[1:50],xlab="x",ylab="y = sin(x)")
+lines(0:49, sine[1:50])
+```
+We prepare our dataset, where X refers to windows of 50 values of sin(x). For example, the first row would include the values of sine from 1 to 50, the second row would include the values of sine from 2 to 51, etc.
+
+y will refer to the next value that comes in this sequence. So the first row would be the value of sin(51), the second row would be the value of sin(52), etc.
+
+```{r}
+X = NULL
+Y = NULL
+
+sequence_length = 50
+num_records = length(sine) - sequence_length
+
+for (i in 1:(num_records-50)){
+  X = rbind(X, sine[i:(i+sequence_length-1)])
+  Y = rbind(Y, sine[i+sequence_length])
+}
+
+```
+
+The remaining records will be used as our validation set.
+
+```{r}
+X_val = NULL
+Y_val = NULL
+
+for (i in (num_records-49):(num_records)){
+  X_val = rbind(X_val, sine[i:(i+sequence_length-1)])
+  Y_val = rbind(Y_val, sine[i+sequence_length])
+}
+
+```
+
+
+We set up the necessary hyperparameters for our RNN model.
+
+```{r}
+learning_rate = 0.0001
+epochs = 10
+hidden_dim = 100
+output_dim = 1
+
+bptt_truncate = 5
+min_clip_value = -10
+max_clip_value = 10
+```
+
+We now initialize the weights for our network. We will also set.seed to allow for reproducible results.
+
+```{r}
+U <- read.csv("U.csv", header=F)
+W <- read.csv("W.csv", header=F)
+V <- read.csv("V.csv", header=F)
+
+U <- as.matrix(U)
+V <- as.matrix(V)
+W <- as.matrix(W)
+```
+
+We will also need our dearest sigmoid function.
+
+```{r}
+sigmoid <- function(x){
+  1 / (1 + exp(-x))
+}
+```
+
+We first do a forward pass through the RNN and calculate the squared error of all the predictions, yielding us the loss value for the both the training and validation set. 
+
+```{r}
+for (epoch in 1:epochs){
+  loss = 0
+  
+  for (i in 1:dim(Y)[1]){
+    x <- X[i,]
+    y <- Y[i]
+    prev_s <- rep(0, hidden_dim) # Initializing the previous activation as a vector of 0s.
+    for (t in 1:sequence_length){
+      new_input <- rep(0, length(x))
+      new_input[t] <- x[t]
+      mulu <- U %*% new_input
+      mulw <- W %*% prev_s
+      add <- mulw + mulu
+      s = sigmoid(add)
+      mulv <- V %*% s
+      prev_s <- s
+    }
+    
+    loss_per_record <- ((y - mulv)^2)/2
+    loss = loss + loss_per_record
+  }
+  loss = loss/length(y)
+  
+  val_loss = 0
+  for (i in 1:dim(Y_val)[1]){
+    x <- X_val[i,]
+    y <- Y_val[i]
+    prev_s <- rep(0, hidden_dim)
+    for (t in 1:sequence_length){
+      new_input <- rep(0, length(x))
+      new_input[t] <- x[t]
+      mulu <- U %*% new_input
+      mulw <- W %*% prev_s
+      add <- mulw + mulu
+      s = sigmoid(add)
+      mulv <- V %*% s
+      prev_s <- s
+    }
+    
+    loss_per_record <- ((y - mulv)^2)/2
+    val_loss = val_loss + loss_per_record
+  }
+  val_loss <- val_loss/length(y)
+  print(paste0("Epoch: ", epoch, ", Loss: ", loss, ", Val Loss: ", val_loss))
+  
+  for (i in 1:dim(Y)[1]){
+    x <- X[i,]
+    y <- Y[i]
+    
+    layers <- array(rep(NaN, sequence_length * hidden_dim * 2), c(sequence_length, 2, hidden_dim)) # Our layers matrix for the given sequence_length = 50, hidden_dim = 100, is 50 x 2 x 100. Hence, we initialize an array with NaN on those dimensions here.
+    prev_s <- rep(0, hidden_dim)
+    dU <- 0 * U
+    dV <- 0 * V
+    dW <- 0 * W
+    
+    dU_t <- 0 * U
+    dV_t <- 0 * V
+    dW_t <- 0 * W
+    
+    dU_i <- 0 * U
+    dW_i <- 0 * W
+    for (t in 1:sequence_length){
+      new_input <- rep(0, length(x))
+      new_input[t] <- x[t]
+      mulu <- U %*% new_input
+      mulw <- W %*% prev_s
+      add <- mulw + mulu
+      s = sigmoid(add)
+      mulv <- V %*% s
+      layers[t,1,] <- s
+      layers[t,2,] <- prev_s
+      prev_s <- s
+    }
+    
+    dmulv <- mulv - y
+    
+    for (t in 1:sequence_length){
+      dV_t <- dmulv %*% t(layers[t,1,])
+      dsv <- t(V) %*% dmulv
+      
+      ds = dsv
+      dadd = add * (1 - add) * ds
+      
+      dmulw = dadd * rep(1, length(mulw))
+      
+      dprev_s = t(W) %*% dmulw
+      
+      for (i in (t-1):(max(-1, (t-bptt_truncate-1))+1)){
+        ds = dsv + dprev_s
+        dadd = add * (1 - add) * ds
+        
+        dmulw = dadd * rep(1, length(mulw))
+        dmulu = dadd * rep(1, length(mulu))
+        
+        dW_i = W %*% layers[t,2,]
+        dprev_s = t(W) %*% dmulw
+        
+        new_input = rep(0, length(x))
+        new_input[t] = x[t]
+        dU_i = U %*% new_input
+        dx = t(U) %*% dmulu
+        
+        dU_t = apply(dU_t, 2, function(x)x+dU_i) # Adding dU_i (100 x 1) to all columns of dU_t (100 x 50)
+        dW_t = apply(dW_t, 2, function(x)x+dW_i)
+      }
+      dV = dV + dV_t
+      dU = dU + dU_t
+      dW = dW + dW_t
+      
+      if (max(dU) > max_clip_value){
+        dU[dU > max_clip_value] = max_clip_value
+      }
+      if (max(dV) > max_clip_value){
+        dV[dV > max_clip_value] = max_clip_value
+      }
+      if (max(dW) > max_clip_value){
+        dW[dW > max_clip_value] = max_clip_value
+      }
+      
+      if (min(dU) < min_clip_value){
+        dU[dU < min_clip_value] = min_clip_value
+      }
+      if (min(dV) < min_clip_value){
+        dV[dV < min_clip_value] = min_clip_value
+      }
+      if (min(dW) < min_clip_value){
+        dW[dW < min_clip_value] = min_clip_value
+      }
+    }
+    U = U - learning_rate * dU
+    V = V - learning_rate * dV
+    W = W - learning_rate * dW
+}
+}
+
+```
+
+Getting predictions on the training set first. We will compute the mse for our predictions as well.
+
+```{r}
+preds <- NULL
+for (i in 1:dim(Y)[1]){
+  x <- X[i,]
+  y <- Y[i]
+  prev_s <- rep(0, hidden_dim)
+  for (t in 1:T){
+    mulu <- U %*% x
+    mulw <- W %*% prev_s
+    add <- mulw + mulu
+    s <- sigmoid(add)
+    mulv <- V %*% s
+    prev_s <- s
+  preds <- rbind(preds, mulv)
+  }
+}
+
+actual_df <- data.frame(x = 0:99, y = sine[1:100])
+predicted_df <- data.frame(x = 0:99, y = preds)
+
+train_mse <- sum((actual_df[y] - predicted_df[y])^2)/dim(actual_df[y])[1]
+train_mse 
+
+ggplot(NULL, aes(x, y)) + 
+  geom_line(data = actual_df, color = "green") +
+  geom_line(data = predicted_df, color = "red") +
+  ggtitle(paste0("Train MSE = ", train_mse))
+
+```
+Let's create the test case for sines of x = 200 to 249, up to sines of 250 to 299. 
+
+```{r}
+test_X <- NULL
+test_Y <- NULL
+for (i in 200:299){
+  test_X <- rbind(test_X, sin(i:(i+49)))
+  test_Y <- rbind(test_Y, sin(i+50))
+}
+actual_test_df <- data.frame(x = 200:299, y = test_Y)
+
+test_preds <- NULL
+for (i in 1:dim(test_Y)[1]){
+  x <- test_X[i,]
+  y <- test_Y[i]
+  prev_s <- rep(0, hidden_dim)
+  for (t in 1:T){
+    mulu <- U %*% x
+    mulw <- W %*% prev_s
+    add <- mulw + mulu
+    s <- sigmoid(add)
+    mulv <- V %*% s
+    prev_s <- s
+  test_preds <- rbind(test_preds, mulv)
+  }
+}
+test_preds_df <- data.frame(x = 200:299, y = test_preds)
+
+test_mse <- sum((actual_test_df[y] - test_preds_df[y])^2)/dim(actual_test_df[y])[1]
+test_mse 
+
+ggplot(NULL, aes(x, y)) + 
+  geom_line(data = actual_test_df, color = "green") +
+  geom_line(data = test_preds_df, color = "red") +
+  ggtitle(paste0("Test MSE = ", test_mse))
+```
+
