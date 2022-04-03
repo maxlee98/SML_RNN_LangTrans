@@ -7,7 +7,6 @@ https://www.analyticsvidhya.com/blog/2019/01/fundamentals-deep-learning-recurren
 ```{r}
 library(dplyr)
 library(tidyverse)
-library(profvis)
 ```
 First, we start by generating value of sine for 1 up to and including 200. 
 
@@ -52,7 +51,7 @@ We set up the necessary hyperparameters for our RNN model.
 
 ```{r}
 learning_rate = 0.0001
-epochs = 10
+epochs = 15
 hidden_dim = 100
 output_dim = 1
 
@@ -189,10 +188,9 @@ for (epoch in 1:epochs){
         dU_t = apply(dU_t, 2, function(x)x+dU_i) # Adding dU_i (100 x 1) to all columns of dU_t (100 x 50)
         dW_t = apply(dW_t, 2, function(x)x+dW_i)
       }
-      dV = dV + dV_t
       dU = dU + dU_t
       dW = dW + dW_t
-      
+      dV = dV + dV_t
       if (max(dU) > max_clip_value){
         dU[dU > max_clip_value] = max_clip_value
       }
@@ -252,6 +250,36 @@ ggplot(NULL, aes(x, y)) +
   ggtitle(paste0("Train MSE = ", train_mse))
 
 ```
+```{r}
+val_preds <- NULL
+for (i in 1:dim(Y_val)[1]){
+  x <- X_val[i,]
+  y <- Y_val[i]
+  prev_s <- rep(0, hidden_dim)
+  for (t in 1:T){
+    mulu <- U %*% x
+    mulw <- W %*% prev_s
+    add <- mulw + mulu
+    s <- sigmoid(add)
+    mulv <- V %*% s
+    prev_s <- s
+  val_preds <- rbind(val_preds, mulv)
+  }
+}
+
+val_actual_df <- data.frame(x = 0:49, y = sine[101:150])
+val_predicted_df <- data.frame(x = 0:49, y = val_preds)
+
+val_mse <- sum((val_actual_df[y] - val_predicted_df[y])^2)/dim(val_actual_df[y])[1]
+val_mse 
+
+ggplot(NULL, aes(x, y)) + 
+  geom_line(data = val_actual_df, color = "green") +
+  geom_line(data = val_predicted_df, color = "red") +
+  ggtitle(paste0("Validation MSE = ", val_mse))
+```
+
+
 Let's create the test case for sines of x = 200 to 249, up to sines of 250 to 299. 
 
 ```{r}
