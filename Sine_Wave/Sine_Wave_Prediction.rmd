@@ -250,6 +250,7 @@ ggplot(NULL, aes(x, y)) +
   ggtitle(paste0("Train MSE = ", train_mse))
 
 ```
+
 ```{r}
 val_preds <- NULL
 for (i in 1:dim(Y_val)[1]){
@@ -317,3 +318,9 @@ ggplot(NULL, aes(x, y)) +
   ggtitle(paste0("Test MSE = ", test_mse))
 ```
 
+```{r}
+newx = 0:11
+
+plot(newx, sin(0:11), col=ifelse(newx==11, "red", "black"), xlab="x", ylab="y=sin(x)")
+
+```
