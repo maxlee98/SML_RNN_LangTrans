@@ -1,6 +1,12 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output: 
+    prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+    toc: true
+    toc_depth: 3
+    number_sections: true
 ---
 https://www.analyticsvidhya.com/blog/2019/01/fundamentals-deep-learning-recurrent-neural-networks-scratch-python/
 

@@ -2,7 +2,13 @@
 title: "Language Translation with RNN"
 author: "Max Lee & Yong Sheng"
 date: "Term 7, 2022"
-output: html_notebook
+output: 
+    prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+    toc: true
+    toc_depth: 3
+    number_sections: true
 ---
 
 *References*
