@@ -1,29 +1,36 @@
 ---
-title: "R Notebook"
-output: 
-    prettydoc::html_pretty:
+title: "RNN from scratch on a sine wave"
+author: "Max Lee & Yong Sheng"
+date: "Term 7, 2022"
+output:   
+  prettydoc::html_pretty:
     theme: cayman
     highlight: github
-    toc: true
-    toc_depth: 3
-    number_sections: true
 ---
+
+*References*
+
+Guide: 
 https://www.analyticsvidhya.com/blog/2019/01/fundamentals-deep-learning-recurrent-neural-networks-scratch-python/
+
+> Since we are building the RNN from scratch, we will only be using some quality-of-life libraries, ie. dplyr and tidyverse.
 
 ```{r}
 library(dplyr)
 library(tidyverse)
 ```
-First, we start by generating value of sine for 1 up to and including 200. 
+
+> We first generate the sin(x) for x ∈ Z : x ∈ [0, 199], and show what it looks like up to x = 49
 
 ```{r}
 sine <- as.matrix(sin(0:199))
 plot(0:49, sine[1:50],xlab="x",ylab="y = sin(x)")
 lines(0:49, sine[1:50])
 ```
-We prepare our dataset, where X refers to windows of 50 values of sin(x). For example, the first row would include the values of sine from 1 to 50, the second row would include the values of sine from 2 to 51, etc.
 
-y will refer to the next value that comes in this sequence. So the first row would be the value of sin(51), the second row would be the value of sin(52), etc.
+> We prepare our dataset, where X refers to windows of 50 values of sin(x). For example, the first row would include the values of sine from 0 to 49, the second row would include the values of sine from 1 to 50, etc.
+
+> y will refer to the next value that comes in this sequence. So the first row would be the value of sin(50), the second row would be the value of sin(51), etc.
 
 ```{r}
 X = NULL
@@ -39,7 +46,7 @@ for (i in 1:(num_records-50)){
 
 ```
 
-The remaining records will be used as our validation set.
+> The remaining records will be used as our validation set.
 
 ```{r}
 X_val = NULL
@@ -53,7 +60,7 @@ for (i in (num_records-49):(num_records)){
 ```
 
 
-We set up the necessary hyperparameters for our RNN model.
+> We set up the necessary hyperparameters for our RNN model.
 
 ```{r}
 learning_rate = 0.0001
@@ -66,7 +73,11 @@ min_clip_value = -10
 max_clip_value = 10
 ```
 
-We now initialize the weights for our network. We will also set.seed to allow for reproducible results.
+> To demonstrate convergence, we will load in a pre-initialized set of weights. Usually, we would randomize the initial set of weights.
+Recall that the dimensions are:
+U: hidden dimension x sequence length
+W: hidden dimension x hidden dimension
+V: output dimension x hidden dimension
 
 ```{r}
 U <- read.csv("U.csv", header=F)
@@ -78,7 +89,7 @@ V <- as.matrix(V)
 W <- as.matrix(W)
 ```
 
-We will also need our dearest sigmoid function.
+> We also will be needing the sigmoid function
 
 ```{r}
 sigmoid <- function(x){
@@ -86,7 +97,7 @@ sigmoid <- function(x){
 }
 ```
 
-We first do a forward pass through the RNN and calculate the squared error of all the predictions, yielding us the loss value for the both the training and validation set. 
+> We will now proceed with the meat of the process, looping through the number of epochs, we first calculate the loss for the training set.
 
 ```{r}
 for (epoch in 1:epochs){
@@ -112,6 +123,8 @@ for (epoch in 1:epochs){
   }
   loss = loss/length(y)
   
+  # Then for the validation set, and then printing out the losses.
+  
   val_loss = 0
   for (i in 1:dim(Y_val)[1]){
     x <- X_val[i,]
@@ -133,6 +146,8 @@ for (epoch in 1:epochs){
   }
   val_loss <- val_loss/length(y)
   print(paste0("Epoch: ", epoch, ", Loss: ", loss, ", Val Loss: ", val_loss))
+  
+  # Now, we proceed with the forward pass, once for each training observation.
   
   for (i in 1:dim(Y)[1]){
     x <- X[i,]
@@ -162,7 +177,7 @@ for (epoch in 1:epochs){
       layers[t,2,] <- prev_s
       prev_s <- s
     }
-    
+    # And now, the backpropagation. Note that intermediate loss is used in this case to adjust the weights for V as well. We also see the truncated backpropagation in action here.
     dmulv <- mulv - y
     
     for (t in 1:sequence_length){
@@ -194,6 +209,8 @@ for (epoch in 1:epochs){
         dU_t = apply(dU_t, 2, function(x)x+dU_i) # Adding dU_i (100 x 1) to all columns of dU_t (100 x 50)
         dW_t = apply(dW_t, 2, function(x)x+dW_i)
       }
+      
+      # Finally, we update the weights after performing necessary gradient clips.
       dU = dU + dU_t
       dW = dW + dW_t
       dV = dV + dV_t
@@ -225,7 +242,7 @@ for (epoch in 1:epochs){
 
 ```
 
-Getting predictions on the training set first. We will compute the mse for our predictions as well.
+> Let us now see how well our model performs on the training set.
 
 ```{r}
 preds <- NULL
@@ -257,6 +274,8 @@ ggplot(NULL, aes(x, y)) +
 
 ```
 
+> And the validation set
+
 ```{r}
 val_preds <- NULL
 for (i in 1:dim(Y_val)[1]){
@@ -287,46 +306,3 @@ ggplot(NULL, aes(x, y)) +
 ```
 
 
-Let's create the test case for sines of x = 200 to 249, up to sines of 250 to 299. 
-
-```{r}
-test_X <- NULL
-test_Y <- NULL
-for (i in 200:299){
-  test_X <- rbind(test_X, sin(i:(i+49)))
-  test_Y <- rbind(test_Y, sin(i+50))
-}
-actual_test_df <- data.frame(x = 200:299, y = test_Y)
-
-test_preds <- NULL
-for (i in 1:dim(test_Y)[1]){
-  x <- test_X[i,]
-  y <- test_Y[i]
-  prev_s <- rep(0, hidden_dim)
-  for (t in 1:T){
-    mulu <- U %*% x
-    mulw <- W %*% prev_s
-    add <- mulw + mulu
-    s <- sigmoid(add)
-    mulv <- V %*% s
-    prev_s <- s
-  test_preds <- rbind(test_preds, mulv)
-  }
-}
-test_preds_df <- data.frame(x = 200:299, y = test_preds)
-
-test_mse <- sum((actual_test_df[y] - test_preds_df[y])^2)/dim(actual_test_df[y])[1]
-test_mse 
-
-ggplot(NULL, aes(x, y)) + 
-  geom_line(data = actual_test_df, color = "green") +
-  geom_line(data = test_preds_df, color = "red") +
-  ggtitle(paste0("Test MSE = ", test_mse))
-```
-
-```{r}
-newx = 0:11
-
-plot(newx, sin(0:11), col=ifelse(newx==11, "red", "black"), xlab="x", ylab="y=sin(x)")
-
-```
