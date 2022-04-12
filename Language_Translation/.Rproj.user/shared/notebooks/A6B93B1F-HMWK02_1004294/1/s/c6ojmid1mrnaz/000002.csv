@@ -1,5 +1,0 @@
-"0","```r
-
-dfwords <- as.data.frame(list(Class=c(\"Rat\",\"Ox\",\"Tiger\",\"Rabbit\",\"Dragon\",\"Snake\",\"Horse\",\"Sheep\"),Prob=c(1/32,8/32,15/32,3/32,1/32,1/32,1/32,2/32),Freq=c(3,24,50,9,3,2,3,10)))
-print(dfwords)
-```"

@@ -1,4 +1,0 @@
-"0","tensor_x <- convert2tensor(tmp_x)"
-"0","# tensor_x"
-"0","tensor_y <- convert2tensor(tmp_y)"
-"0","# tensor_y"

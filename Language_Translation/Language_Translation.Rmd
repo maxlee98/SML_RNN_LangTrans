@@ -48,9 +48,6 @@ train <- read.csv(file_name, encoding="UTF-8", stringsAsFactors=FALSE)
 colnames(train) <- c("English", language)
 ```
 
-```{r}
-train
-```
 # Tokenizer
 ```{r}
 tokenize <- function(x){
@@ -298,6 +295,8 @@ model_RNN %>% compile(
 
 plot_model(model_RNN)
 ```
+
+
 ```{r}
 
 history = model_RNN %>% fit(
@@ -305,6 +304,7 @@ history = model_RNN %>% fit(
   epochs           = 10,
   batch_size = 1024,
   validation_split = 0.2,
+  verbose = 0
 )
 plot(history)
 ```
