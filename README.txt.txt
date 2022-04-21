@@ -20,15 +20,19 @@ library(deepviz)
 
 # How to run the program:
 
+1. Unzip `Team07.zip` to obtain the file SML_RNN_LangTrans
+2. Open `index.html` to view a directory, allowing you to navigate to the specific folders to download the files. Alternatively, navigate to the file required via the folder directory itself and open the file.
+3. Navigate to the specific folders as mentioned in the sections below
+
 ## Sine Wave Prediction
-1. Download the `.rmd` file  
+1. Download the `.rmd` file  or Open the `.rmd` file via its respective folder *Sine_Wave*
 2. Ensure all libraries required are installed
 3. Run all chunks of the code. (May take some time to complete all Epochs, to reduce number of Epochs edit Line 67)
 4. Observe the differences between a predicted Sine Wave curve via RNN and the actual Sine wave curve.
 
 
 ## Language Translation
-1. Download the `.rmd` file and the `.Rproj` file.
+1. Download the `.rmd` file and the `.Rproj` file or Open the `.Rproj` file via its respective folder *Language_Translation*
 2. Ensure that all libraries required are installed.
 3. Run all chunks for the `.rmd` file. Reducing waiting time by reducing number of epochs at Line 304. **Reducing number of epochs may result in reduced accuracy**
 4. Observe the differences between actual translation and predicted translation.
